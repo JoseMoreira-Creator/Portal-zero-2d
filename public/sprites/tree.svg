@@ -1,0 +1,13 @@
+<svg width="128" height="128" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <!-- Trunk -->
+  <rect x="26" y="30" width="12" height="34" fill="#5D4037" />
+  
+  <!-- Leaves -->
+  <rect x="10" y="10" width="44" height="30" fill="#2E7D32" />
+  <rect x="16" y="2" width="32" height="10" fill="#2E7D32" />
+  <rect x="2" y="18" width="60" height="16" fill="#2E7D32" opacity="0.8" />
+  
+  <!-- Detail -->
+  <rect x="15" y="15" width="4" height="4" fill="#4CAF50" />
+  <rect x="45" y="20" width="4" height="4" fill="#4CAF50" />
+</svg>
