@@ -138,7 +138,9 @@ export const GameWiki: React.FC<GameWikiProps> = ({ onClose }) => {
             {/* 1. RECIPES */}
             <Section title="Crafting Recipes" id="recipes">
                 {CRAFTING_RECIPES.map((recipe, idx) => (
-                    <RecipeCard key={idx} recipe={recipe} />
+                    <div key={idx}>
+                        <RecipeCard recipe={recipe} />
+                    </div>
                 ))}
             </Section>
 

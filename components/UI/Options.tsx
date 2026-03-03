@@ -18,6 +18,13 @@ export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose
       setSettings(prev => ({ ...prev, animations: !prev.animations }));
   };
 
+  const toggleMobileControlStyle = () => {
+      setSettings(prev => ({ 
+          ...prev, 
+          mobileControlStyle: prev.mobileControlStyle === 'joystick' ? 'dpad' : 'joystick' 
+      }));
+  };
+
   const handleZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = parseFloat(e.target.value);
       setSettings(prev => ({ ...prev, zoom: val }));
@@ -41,6 +48,20 @@ export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose
                     className={`mc-btn w-24 py-2 font-bold ${settings.animations ? 'text-green-800' : 'text-red-800'}`}
                 >
                     {settings.animations ? 'ON' : 'OFF'}
+                </button>
+            </div>
+
+            {/* Mobile Controls Toggle */}
+            <div className="flex justify-between items-center bg-[#a0a0a0] p-3 border-2 border-[#555]">
+                <div className="flex flex-col">
+                    <span className="text-lg font-bold text-[#222]">Mobile Controls</span>
+                    <span className="text-xs text-[#444]">Joystick or D-Pad</span>
+                </div>
+                <button 
+                    onClick={toggleMobileControlStyle}
+                    className="mc-btn w-24 py-2 font-bold text-[#222]"
+                >
+                    {settings.mobileControlStyle === 'joystick' ? 'JOYSTICK' : 'D-PAD'}
                 </button>
             </div>
 

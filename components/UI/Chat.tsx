@@ -110,7 +110,7 @@ export const Chat: React.FC<ChatProps> = ({ isOpen, messages, onSendMessage, onC
 
             {/* INPUT BAR - Centered Bottom */}
             {isOpen && (
-                <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 w-[400px] z-50">
+                <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 w-[90%] max-w-[400px] z-50">
                     <div className="bg-[#1a1a1a]/90 p-2 border-2 border-white rounded-md flex items-center shadow-2xl">
                         <span className="text-yellow-400 mr-2 font-bold font-mono text-xl">&gt;</span>
                         <input

@@ -9,9 +9,10 @@ interface InventoryProps {
   cursor: CursorState;
   updateInventory: (newInv: InventorySlot[]) => void;
   close: () => void;
+  onOpenOptions: () => void;
 }
 
-export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, close }) => {
+export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, close, onOpenOptions }) => {
   const [hand, setHand] = useState<InventorySlot>({ item: ItemType.EMPTY, count: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isRightDragging, setIsRightDragging] = useState(false);
@@ -572,7 +573,15 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
                 </div>
             </div>
 
-            <div className="px-1"><h2 className="text-[#444] text-2xl font-bold">Inventory</h2></div>
+            <div className="px-1 flex justify-between items-center">
+                <h2 className="text-[#444] text-2xl font-bold">Inventory</h2>
+                <button 
+                    onClick={onOpenOptions}
+                    className="mc-btn px-4 py-1 text-sm font-bold text-[#222]"
+                >
+                    Settings
+                </button>
+            </div>
             
             {/* Inventory Slots */}
             <div className="p-0">

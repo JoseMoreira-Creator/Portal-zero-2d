@@ -12,6 +12,7 @@ export enum GameState {
 export interface GameSettings {
   animations: boolean;
   zoom: number;
+  mobileControlStyle: 'joystick' | 'dpad';
 }
 
 export interface Attributes {
@@ -202,6 +203,9 @@ export interface CursorState {
   
   faceDirection: number; 
   isMapOpen: boolean; // Logic state for map view
+  targetPos: Vector2 | null; // For touch-to-move
+  autoAction: 'NONE' | 'CHOP' | 'MINE';
+  autoTargetId: string | null;
 }
 
 // Data to persist when switching dimensions

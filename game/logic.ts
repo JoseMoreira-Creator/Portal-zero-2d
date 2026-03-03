@@ -174,7 +174,10 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
       healCooldown: 0,
       terraCooldown: 0,
       faceDirection: 1,
-      isMapOpen: false
+      isMapOpen: false,
+      targetPos: null,
+      autoAction: 'NONE',
+      autoTargetId: null
     },
     // Multiplayer defaults
     remotePlayers: {},
@@ -443,10 +446,57 @@ export const updateGame = (
   let dx = 0;
   let dy = 0;
   if (!c.isInventoryOpen) {
-      if (c.keys.w) dy -= 1;
-      if (c.keys.s) dy += 1;
-      if (c.keys.a) dx -= 1;
-      if (c.keys.d) dx += 1;
+      if (c.keys.w || c.keys.a || c.keys.s || c.keys.d) {
+          if (c.keys.w) dy -= 1;
+          if (c.keys.s) dy += 1;
+          if (c.keys.a) dx -= 1;
+          if (c.keys.d) dx += 1;
+          c.targetPos = null;
+          c.autoAction = 'NONE';
+          c.autoTargetId = null;
+      }
+
+      // Auto Action Logic
+      if (c.autoAction !== 'NONE' && c.autoTargetId) {
+          const target = w.entities.find(e => e.id === c.autoTargetId);
+          if (target) {
+              const dist = getDistance(c.pos, target.pos);
+              if (dist > 50) {
+                  // Move towards target
+                  const angle = Math.atan2(target.pos.y - c.pos.y, target.pos.x - c.pos.x);
+                  dx = Math.cos(angle);
+                  dy = Math.sin(angle);
+                  c.targetPos = { ...target.pos };
+              } else {
+                  // Close enough, stop moving and swing
+                  dx = 0;
+                  dy = 0;
+                  c.targetPos = null;
+                  
+                  if (c.meleeCooldown <= 0) {
+                      c.meleeActive = true;
+                      c.meleeTimer = GAME_BALANCE.MELEE_DURATION_FRAMES;
+                      c.meleeCooldown = GAME_BALANCE.MELEE_COOLDOWN_FRAMES;
+                      c.meleeAngle = Math.atan2(target.pos.y - c.pos.y, target.pos.x - c.pos.x);
+                  }
+              }
+          } else {
+              // Target gone
+              c.autoAction = 'NONE';
+              c.autoTargetId = null;
+              c.targetPos = null;
+          }
+      } else if (c.targetPos) {
+          // Touch to move logic
+          const dist = getDistance(c.pos, c.targetPos);
+          if (dist > 5) {
+              const angle = Math.atan2(c.targetPos.y - c.pos.y, c.targetPos.x - c.pos.x);
+              dx = Math.cos(angle);
+              dy = Math.sin(angle);
+          } else {
+              c.targetPos = null;
+          }
+      }
   }
 
   if (dx !== 0 || dy !== 0) {
@@ -529,6 +579,14 @@ export const updateGame = (
   }
 
   if (c.parryCooldown > 0) c.parryCooldown--;
+  if (c.parryActive) {
+      c.parryTimer++;
+  } else {
+      if (c.parryTimer > 0) {
+          c.parryCooldown = 20; // Cooldown after releasing block
+      }
+      c.parryTimer = 0;
+  }
   if (c.meleeCooldown > 0) c.meleeCooldown--;
   if (c.bowCooldown > 0) c.bowCooldown--;
   if (c.terraCooldown > 0) c.terraCooldown--;
@@ -548,7 +606,21 @@ export const updateGame = (
           // Handle Torch Projectile (Stopping logic)
           if (p.type === 'TORCH') {
                if (p.life !== undefined && p.life <= 0) {
-                   // Turn into entity
+                   // EXPLOSION!
+                   spawnParticles(w, p.pos, '#ff4400', 20);
+                   spawnParticles(w, p.pos, '#ffeb3b', 10);
+                   w.camShake = 10;
+
+                   // Damage nearby entities
+                   for (const ent of w.entities) {
+                       if (getDistance(p.pos, ent.pos) < 100) {
+                           ent.hp -= p.damage;
+                           ent.state = 'FLEEING';
+                           spawnParticles(w, ent.pos, ent.color, 5);
+                       }
+                   }
+
+                   // Turn into entity (the remaining torch)
                    w.entities.push({
                        id: Math.random().toString(),
                        type: ItemType.TORCH,
@@ -573,9 +645,29 @@ export const updateGame = (
           if (p.isEnemy) {
               if (getDistance(p.pos, c.pos) < p.radius + 15) {
                   if (c.parryActive) {
-                      spawnParticles(w, p.pos, '#fff', 3);
-                      w.projectiles.splice(i, 1);
-                      continue;
+                      const blockAngle = getAngle(c.pos, c.mousePos);
+                      const attackAngle = getAngle(c.pos, p.pos);
+                      let diff = Math.abs(blockAngle - attackAngle);
+                      if (diff > Math.PI) diff = (Math.PI*2) - diff;
+
+                      if (diff < Math.PI / 2) {
+                          const isPerfectParry = c.parryTimer <= 15 && c.parryCooldown <= 0;
+                          
+                          if (isPerfectParry) {
+                              // Deflect projectile back
+                              p.isEnemy = false;
+                              p.vel.x = -p.vel.x * 1.5;
+                              p.vel.y = -p.vel.y * 1.5;
+                              p.damage *= 2; // Double damage on deflect
+                              w.camShake = 5;
+                              spawnParticles(w, p.pos, '#fff', 10);
+                          } else {
+                              // Normal block, destroy projectile
+                              spawnParticles(w, p.pos, '#fff', 3);
+                              w.projectiles.splice(i, 1);
+                          }
+                          continue;
+                      }
                   }
                   setStats((prev: any) => ({ ...prev, hp: prev.hp - p.damage }));
                   w.camShake = 5;
@@ -594,392 +686,125 @@ export const updateGame = (
   }
 
 
-  // Right Click (Place / Shield / Eat / Map / Summon / DOOR INTERACT / LADDER INTERACT)
-  if (c.isRightDown && !c.isInventoryOpen) {
-      let actionTaken = false;
-      const activeSlot = c.inventory[c.hotbarSelectedIndex];
-      
-      // DOOR INTERACTION (Toggle Open/Close) - Allow Clients to flip state locally, Host will overwrite eventually or accept?
-      // For now, Client interaction with Entities is tricky. Let's allow local prediction.
-      if (!actionTaken && c.meleeCooldown <= 0) {
-          for (const ent of w.entities) {
-              if (ent.type === ItemType.DOOR) {
-                  if (getDistance(c.mousePos, ent.pos) < 30 && getDistance(c.pos, ent.pos) < 60) {
-                      ent.isOpen = !ent.isOpen;
-                      c.meleeCooldown = 15;
-                      actionTaken = true;
-                      c.isRightDown = false; // Prevent spam
-                      break;
-                  }
-              }
-          }
-      }
 
-      // LADDER INTERACTION (Dimension Switch) - Disabled in Multiplayer for Client for simplicity?
-      // Or Client switches locally.
-      if (!actionTaken && c.meleeCooldown <= 0) {
-          for (const ent of w.entities) {
-              if (ent.type === ItemType.LADDER) {
-                  if (getDistance(c.mousePos, ent.pos) < 30 && getDistance(c.pos, ent.pos) < 60) {
-                      // IF MULTIPLAYER CLIENT, DISABLE DIMENSION SWITCH FOR NOW
-                      if (isClient) {
-                          // TODO: Request dimension switch from Host
-                          break;
-                      }
 
-                      // SWITCH DIMENSION
-                      const currentDim = w.dimension;
-                      const targetDim = currentDim === 'SURFACE' ? 'UNDERGROUND' : 'SURFACE';
-                      
-                      // 1. SAVE CURRENT STATE
-                      w.inactiveWorldData[currentDim] = {
-                          entities: w.entities,
-                          items: w.items,
-                          projectiles: w.projectiles,
-                          waterBodies: w.waterBodies,
-                          playerPos: { ...c.pos }
-                      };
-
-                      // 2. LOAD OR GENERATE TARGET STATE
-                      let nextData: StoredDimensionData | undefined = w.inactiveWorldData[targetDim];
-                      
-                      if (!nextData && targetDim === 'UNDERGROUND') {
-                          // Generate new Underground
-                          const newUnd = createUndergroundWorld();
-                          nextData = {
-                              entities: newUnd.entities,
-                              items: [],
-                              projectiles: [],
-                              waterBodies: [],
-                              playerPos: newUnd.spawn
-                          };
-                      } else if (!nextData && targetDim === 'SURFACE') {
-                          // Should technically not happen if we started on surface, but fallback
-                          nextData = { entities: [], items: [], projectiles: [], waterBodies: [], playerPos: {x: 100, y: 100} };
-                      }
-
-                      if (nextData) {
-                          w.entities = nextData.entities;
-                          w.items = nextData.items;
-                          w.projectiles = nextData.projectiles;
-                          w.waterBodies = nextData.waterBodies;
-                          w.dimension = targetDim;
-                          c.pos = { ...nextData.playerPos };
-                          
-                          // If returning to surface, offset slightly so we don't clip into the ladder/wall instantly? 
-                          // Or just rely on pushout logic. The saved pos should be fine.
-                          
-                          w.camShake = 10;
-                      }
-
-                      c.meleeCooldown = 60; // Long debounce for transition
-                      actionTaken = true;
-                      c.isRightDown = false;
-                      break;
-                  }
-              }
-          }
-      }
-
-      // Map Use
-      if (!actionTaken && activeSlot.item === ItemType.MAP && c.meleeCooldown <= 0) {
-          c.isMapOpen = !c.isMapOpen;
-          c.meleeCooldown = 15; // Debounce
-          c.isRightDown = false;
-          actionTaken = true;
-      }
-      
-      // BOSS SUMMON
-      if (!actionTaken && activeSlot.item === ItemType.SLIME_CROWN && c.meleeCooldown <= 0) {
-          if (!isClient) { // Only Host summons boss
-              w.entities.push({
-                  id: `boss-slime-${Math.random()}`,
-                  type: MobType.GIANT_SLIME,
-                  pos: { ...c.mousePos },
-                  vel: { x: 0, y: 0 },
-                  hp: 500,
-                  maxHp: 500,
-                  state: 'CHASING',
-                  attackTimer: 60,
-                  size: 60,
-                  color: COLORS.GIANT_SLIME,
-                  faceDirection: 1
-              });
-              
-              spawnParticles(w, c.mousePos, COLORS.GIANT_SLIME, 20);
-              w.camShake = 20;
-          }
-          
-          if (activeSlot.count > 1) activeSlot.count--;
-          else {
-              activeSlot.item = ItemType.EMPTY;
-              activeSlot.count = 0;
-          }
-          c.meleeCooldown = 60;
-          actionTaken = true;
-      }
-
-      // Interaction (Crafting Tables & Anvils)
-      if (!actionTaken && !c.isInventoryOpen && !c.parryActive) {
-          if (hoveringInteractable) {
-               // Check what we are hovering
-               let entType = null;
-               for (const ent of w.entities) {
-                  if (getDistance(c.mousePos, ent.pos) < 20) {
-                      entType = ent.type;
-                      break;
-                  }
-               }
-
-               c.isInventoryOpen = true;
-               if (entType === ItemType.CRAFTING_TABLE) c.isCraftingTableOpen = true;
-               if (entType === ItemType.ANVIL) c.isAnvilOpen = true;
-               
-               c.isRightDown = false; 
-               actionTaken = true;
-          }
-      }
-
-      // Eating
-      if (!actionTaken && (activeSlot.item === ItemType.RAW_BEEF || activeSlot.item === ItemType.STEAK)) {
-          if (c.healCooldown <= 0 && stats.hunger < stats.maxHunger) {
-               const healAmount = activeSlot.item === ItemType.STEAK ? GAME_BALANCE.FOOD_VALUE_COOKED : GAME_BALANCE.FOOD_VALUE_RAW;
-               setStats(prev => ({ ...prev, hunger: Math.min(prev.maxHunger, prev.hunger + healAmount) }));
-               
-               if (activeSlot.count > 1) activeSlot.count--;
-               else {
-                   activeSlot.item = ItemType.EMPTY;
-                   activeSlot.count = 0;
-               }
-               c.healCooldown = 30;
-               spawnParticles(w, c.pos, COLORS.HUNGER, 3);
-               actionTaken = true;
-          }
-      }
-
-      // Placement (Client places locally, will desync if not careful, but okay for prototype)
-      const placeableTypes = [ItemType.CRAFTING_TABLE, ItemType.WOOD, ItemType.PLANKS, ItemType.FURNACE, ItemType.ANVIL, ItemType.TORCH, ItemType.DOOR, ItemType.LADDER];
-      if (!actionTaken && placeableTypes.includes(activeSlot.item)) {
-          if (c.meleeCooldown <= 0) {
-              let placePos = { ...c.mousePos };
-              let snap = false;
-              
-              if (activeSlot.item !== ItemType.TORCH) {
-                  const gridX = Math.floor(c.mousePos.x / BLOCK_SIZE) * BLOCK_SIZE + BLOCK_SIZE/2;
-                  const gridY = Math.floor(c.mousePos.y / BLOCK_SIZE) * BLOCK_SIZE + BLOCK_SIZE/2;
-                  placePos = { x: gridX, y: gridY };
-                  snap = true;
-              }
-
-              let canPlace = true;
-              if (snap) {
-                   if (getDistance(placePos, c.pos) < 30) canPlace = false; 
-                   for(const e of w.entities) {
-                       if (getDistance(placePos, e.pos) < 30) canPlace = false; 
-                   }
-              }
-              if (getDistance(placePos, c.pos) > 150) canPlace = false; 
-
-              if (canPlace) {
-                  let maxHp = 50;
-                  let color = '#8b4513';
-                  let type = activeSlot.item as any;
-                  
-                  if (activeSlot.item === ItemType.WOOD) { maxHp = 50; color = COLORS.WOOD; }
-                  if (activeSlot.item === ItemType.PLANKS) { maxHp = 30; color = '#d7ccc8'; }
-                  if (activeSlot.item === ItemType.FURNACE) { maxHp = 60; color = '#546e7a'; }
-                  if (activeSlot.item === ItemType.ANVIL) { maxHp = 100; color = '#222'; }
-                  if (activeSlot.item === ItemType.TORCH) { maxHp = 1; color = '#ffeb3b'; }
-                  if (activeSlot.item === ItemType.DOOR) { maxHp = 30; color = COLORS.WOOD; }
-                  if (activeSlot.item === ItemType.LADDER) { maxHp = 30; color = '#8d6e63'; }
-
-                  w.entities.push({
-                      id: Math.random().toString(),
-                      type,
-                      pos: placePos,
-                      vel: {x:0, y:0},
-                      hp: maxHp,
-                      maxHp: maxHp,
-                      state: 'IDLE',
-                      attackTimer: 0,
-                      size: activeSlot.item === ItemType.TORCH ? 10 : 32,
-                      color: color,
-                      faceDirection: 1,
-                      maxLife: activeSlot.item === ItemType.TORCH ? GAME_BALANCE.TORCH_LIFETIME : undefined,
-                      isOpen: activeSlot.item === ItemType.DOOR ? false : undefined
-                  });
-                  if (activeSlot.count > 1) {
-                      activeSlot.count--;
-                  } else {
-                      activeSlot.item = ItemType.EMPTY;
-                      activeSlot.count = 0;
-                  }
-                  c.meleeCooldown = 15; 
-                  actionTaken = true;
-              }
-          }
-      }
-
-      if (!actionTaken) {
-          if (activeSlot.item === ItemType.SHIELD) {
-              c.parryActive = true;
-          }
-      }
-  } else {
-      c.parryActive = false;
-  }
-
-  // Left Click
-  if (c.isLeftDown && !c.parryActive && !c.isInventoryOpen) {
+  // MELEE HIT DETECTION (Run once per swing)
+  if (c.meleeActive && c.meleeTimer === GAME_BALANCE.MELEE_DURATION_FRAMES) {
      const activeItem = c.inventory[c.hotbarSelectedIndex].item;
+     let effectiveDamage = 0;
+     let isMining = false;
 
-     if (activeItem === ItemType.TORCH && c.bowCooldown <= 0) {
-         // Thrown torches
-         if (!isClient) {
-             const angle = getAngle(c.pos, c.mousePos);
-             const speed = 8;
-             const lifetime = 12; 
-
-             w.projectiles.push({
-                 id: Math.random().toString(),
-                 pos: { ...c.pos },
-                 vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
-                 radius: 4,
-                 isEnemy: false,
-                 damage: 0,
-                 color: '#ffeb3b',
-                 type: 'TORCH',
-                 life: lifetime
-             });
-         }
-
-         const slot = c.inventory[c.hotbarSelectedIndex];
-         if (slot.count > 1) slot.count--;
-         else {
-             slot.item = ItemType.EMPTY;
-             slot.count = 0;
-         }
-         c.bowCooldown = 30; 
-     } 
-     else if (!c.meleeActive && c.meleeCooldown <= 0) {
-         c.meleeActive = true;
-         c.meleeTimer = GAME_BALANCE.MELEE_DURATION_FRAMES;
-         c.meleeCooldown = GAME_BALANCE.MELEE_COOLDOWN_FRAMES;
-         c.meleeAngle = getAngle(c.pos, c.mousePos);
-
-         let effectiveDamage = 0;
-         let isMining = false;
-
-         // We iterate backwards to allow removal
-         // Clients can "hit" entities locally, but if Host syncs overrides, it might rubberband.
-         // We allow local hit processing for responsiveness.
-         for (let i = w.entities.length - 1; i >= 0; i--) {
-             const ent = w.entities[i];
-             if (getDistance(c.pos, ent.pos) < 60) {
-                 const angleToEnt = getAngle(c.pos, ent.pos);
-                 let angleDiff = Math.abs(angleToEnt - c.meleeAngle);
-                 if (angleDiff > Math.PI) angleDiff = (Math.PI * 2) - angleDiff;
+     // We iterate backwards to allow removal
+     for (let i = w.entities.length - 1; i >= 0; i--) {
+         const ent = w.entities[i];
+         if (getDistance(c.pos, ent.pos) < 80) {
+             const angleToEnt = getAngle(c.pos, ent.pos);
+             let angleDiff = Math.abs(angleToEnt - c.meleeAngle);
+             if (angleDiff > Math.PI) angleDiff = (Math.PI * 2) - angleDiff;
+             
+             if (angleDiff < Math.PI / 3) {
                  
-                 if (angleDiff < Math.PI / 4) {
-                     
-                     const stoneTypes = ['ROCK', 'COAL_ORE', 'IRON_ORE', ItemType.FURNACE, ItemType.ANVIL];
-                     const woodTypes = ['TREE', 'BIRCH_TREE', ItemType.WOOD, ItemType.PLANKS, 'CRAFTING_TABLE', ItemType.DOOR, ItemType.LADDER];
+                 const stoneTypes = ['ROCK', 'COAL_ORE', 'IRON_ORE', ItemType.FURNACE, ItemType.ANVIL];
+                 const woodTypes = ['TREE', 'BIRCH_TREE', ItemType.WOOD, ItemType.PLANKS, 'CRAFTING_TABLE', ItemType.DOOR, ItemType.LADDER];
 
-                     if (stoneTypes.includes(ent.type as string)) {
-                         isMining = true;
-                         if (activeItem === ItemType.PICKAXE_WOOD || activeItem === ItemType.PICKAXE_STONE) {
-                             effectiveDamage = GAME_BALANCE.PICKAXE_MINING_DAMAGE;
-                         } else {
-                             effectiveDamage = 0;
-                         }
-                     } else if (woodTypes.includes(ent.type as string)) {
-                         isMining = true;
-                         effectiveDamage = GAME_BALANCE.HAND_MINING_DAMAGE;
-                         if (activeItem === ItemType.AXE_WOOD || activeItem === ItemType.AXE_STONE) {
-                             effectiveDamage = GAME_BALANCE.AXE_MINING_DAMAGE;
-                         }
-                     } else if (ent.type === ItemType.TORCH) {
-                         isMining = true;
-                         effectiveDamage = 100;
+                 if (stoneTypes.includes(ent.type as string)) {
+                     isMining = true;
+                     if (activeItem === ItemType.PICKAXE_WOOD || activeItem === ItemType.PICKAXE_STONE) {
+                         effectiveDamage = GAME_BALANCE.PICKAXE_MINING_DAMAGE;
+                     } else {
+                         effectiveDamage = 0;
                      }
+                 } else if (woodTypes.includes(ent.type as string)) {
+                     isMining = true;
+                     effectiveDamage = GAME_BALANCE.HAND_MINING_DAMAGE;
+                     if (activeItem === ItemType.AXE_WOOD || activeItem === ItemType.AXE_STONE) {
+                         effectiveDamage = GAME_BALANCE.AXE_MINING_DAMAGE;
+                     }
+                 } else if (ent.type === ItemType.TORCH) {
+                     isMining = true;
+                     effectiveDamage = 100;
+                 }
 
-                     if (isMining) {
-                         if (effectiveDamage > 0) {
-                             ent.hp -= effectiveDamage;
-                             spawnParticles(w, ent.pos, ent.color, 2);
-                             if (ent.hp <= 0) {
-                                 // Drops logic
-                                 if (ent.type === 'TREE') {
-                                     for(let j=0; j<3; j++) dropItem(w, ent.pos, ItemType.WOOD);
-                                 } else if (ent.type === 'BIRCH_TREE') {
-                                     for(let j=0; j<3; j++) dropItem(w, ent.pos, ItemType.BIRCH_WOOD);
-                                 } else if (ent.type === 'ROCK') {
-                                     dropItem(w, ent.pos, ItemType.STONE);
-                                     dropItem(w, ent.pos, ItemType.STONE);
-                                 } else if (ent.type === 'COAL_ORE') {
-                                     dropItem(w, ent.pos, ItemType.COAL);
-                                     dropItem(w, ent.pos, ItemType.STONE);
-                                 } else if (ent.type === 'IRON_ORE') {
-                                     dropItem(w, ent.pos, ItemType.IRON);
-                                     dropItem(w, ent.pos, ItemType.STONE);
-                                 } else if (ent.type === ItemType.FURNACE) {
-                                     dropItem(w, ent.pos, ItemType.FURNACE);
-                                 } else if (ent.type === ItemType.ANVIL) {
-                                     dropItem(w, ent.pos, ItemType.ANVIL);
-                                 } else if (ent.type === ItemType.TORCH) {
-                                     dropItem(w, ent.pos, ItemType.TORCH);
-                                 } else if (ent.type === ItemType.WOOD) {
-                                     dropItem(w, ent.pos, ItemType.WOOD);
-                                 } else if (ent.type === ItemType.PLANKS) {
-                                     dropItem(w, ent.pos, ItemType.PLANKS);
-                                 } else if (ent.type === ItemType.CRAFTING_TABLE) {
-                                     dropItem(w, ent.pos, ItemType.CRAFTING_TABLE);
-                                 } else if (ent.type === ItemType.DOOR) {
-                                     dropItem(w, ent.pos, ItemType.DOOR);
-                                 } else if (ent.type === ItemType.LADDER) {
-                                     dropItem(w, ent.pos, ItemType.LADDER);
-                                 }
-                                 
-                                 w.entities.splice(i, 1);
-                                 if (ent.type === 'CRAFTING_TABLE' || ent.type === ItemType.ANVIL) {
-                                     c.isInventoryOpen = false;
-                                     c.isCraftingTableOpen = false;
-                                     c.isAnvilOpen = false;
-                                 }
+                 if (isMining) {
+                     if (effectiveDamage > 0) {
+                         ent.hp -= effectiveDamage;
+                         spawnParticles(w, ent.pos, ent.color, 2);
+                         if (ent.hp <= 0) {
+                             // Drops logic
+                             if (ent.type === 'TREE') {
+                                 for(let j=0; j<3; j++) dropItem(w, ent.pos, ItemType.WOOD);
+                             } else if (ent.type === 'BIRCH_TREE') {
+                                 for(let j=0; j<3; j++) dropItem(w, ent.pos, ItemType.BIRCH_WOOD);
+                             } else if (ent.type === 'ROCK') {
+                                 dropItem(w, ent.pos, ItemType.STONE);
+                                 dropItem(w, ent.pos, ItemType.STONE);
+                             } else if (ent.type === 'COAL_ORE') {
+                                 dropItem(w, ent.pos, ItemType.COAL);
+                                 dropItem(w, ent.pos, ItemType.STONE);
+                             } else if (ent.type === 'IRON_ORE') {
+                                 dropItem(w, ent.pos, ItemType.IRON);
+                                 dropItem(w, ent.pos, ItemType.STONE);
+                             } else if (ent.type === ItemType.FURNACE) {
+                                 dropItem(w, ent.pos, ItemType.FURNACE);
+                             } else if (ent.type === ItemType.ANVIL) {
+                                 dropItem(w, ent.pos, ItemType.ANVIL);
+                             } else if (ent.type === ItemType.TORCH) {
+                                 dropItem(w, ent.pos, ItemType.TORCH);
+                             } else if (ent.type === ItemType.WOOD) {
+                                 dropItem(w, ent.pos, ItemType.WOOD);
+                             } else if (ent.type === ItemType.PLANKS) {
+                                 dropItem(w, ent.pos, ItemType.PLANKS);
+                             } else if (ent.type === ItemType.CRAFTING_TABLE) {
+                                 dropItem(w, ent.pos, ItemType.CRAFTING_TABLE);
+                             } else if (ent.type === ItemType.DOOR) {
+                                 dropItem(w, ent.pos, ItemType.DOOR);
+                             } else if (ent.type === ItemType.LADDER) {
+                                 dropItem(w, ent.pos, ItemType.LADDER);
+                             }
+                             
+                             w.entities.splice(i, 1);
+                             if (ent.type === 'CRAFTING_TABLE' || ent.type === ItemType.ANVIL) {
+                                 c.isInventoryOpen = false;
+                                 c.isCraftingTableOpen = false;
+                                 c.isAnvilOpen = false;
                              }
                          }
-                     } else {
-                         // Combat (If Client, might desync with Host, but visual feedback is good)
-                         let combatDamage = 5;
-                         if (activeItem === ItemType.SWORD_WOOD) combatDamage = 15;
-                         if (activeItem === ItemType.SWORD_STONE) combatDamage = 25;
-                         if (activeItem === ItemType.AXE_WOOD) combatDamage = 10;
-                         if (activeItem === ItemType.AXE_STONE) combatDamage = 15;
-                         if (activeItem === ItemType.PICKAXE_WOOD) combatDamage = 8;
+                     }
+                 } else {
+                     // Combat
+                     let combatDamage = 5;
+                     if (activeItem === ItemType.SWORD_WOOD) combatDamage = 15;
+                     if (activeItem === ItemType.SWORD_STONE) combatDamage = 25;
+                     if (activeItem === ItemType.AXE_WOOD) combatDamage = 10;
+                     if (activeItem === ItemType.AXE_STONE) combatDamage = 15;
+                     if (activeItem === ItemType.PICKAXE_WOOD) combatDamage = 8;
 
-                         ent.hp -= combatDamage;
-                         const push = normalizeVector(getVector(c.pos, ent.pos));
-                         ent.pos.x += push.x * 15;
-                         ent.pos.y += push.y * 15;
-                         ent.state = 'FLEEING'; 
-                         spawnParticles(w, ent.pos, '#fff', 3);
+                     ent.hp -= combatDamage;
+                     const push = normalizeVector(getVector(c.pos, ent.pos));
+                     ent.pos.x += push.x * 15;
+                     ent.pos.y += push.y * 15;
+                     ent.state = 'FLEEING'; 
+                     spawnParticles(w, ent.pos, '#fff', 3);
+                     
+                     if (ent.hp <= 0) {
+                         w.entities.splice(i, 1);
+                         if (ent.type === MobType.COW) dropItem(w, ent.pos, ItemType.RAW_BEEF);
+                         if (ent.type === MobType.ZOMBIE) dropItem(w, ent.pos, ItemType.STONE);
+                         if (ent.type === MobType.SKELETON) dropItem(w, ent.pos, ItemType.STICK);
+                         if (ent.type === MobType.CHICKEN) dropItem(w, ent.pos, ItemType.RAW_BEEF);
+                         if (ent.type === MobType.SHEEP) dropItem(w, ent.pos, ItemType.RAW_BEEF);
+                         if (ent.type === MobType.SLIME || ent.type === MobType.GIANT_SLIME) dropItem(w, ent.pos, ItemType.SLIME_BALL);
+                         if (ent.type === MobType.SPIDER) dropItem(w, ent.pos, ItemType.STRING);
+                         if (ent.type === MobType.CREEPER) dropItem(w, ent.pos, ItemType.COAL);
                          
-                         if (ent.hp <= 0) {
-                             w.entities.splice(i, 1);
-                             if (ent.type === MobType.COW) dropItem(w, ent.pos, ItemType.RAW_BEEF);
-                             if (ent.type === MobType.ZOMBIE) dropItem(w, ent.pos, ItemType.STONE);
-                             if (ent.type === MobType.SKELETON) dropItem(w, ent.pos, ItemType.STICK);
-                             if (ent.type === MobType.CHICKEN) dropItem(w, ent.pos, ItemType.RAW_BEEF);
-                             if (ent.type === MobType.SHEEP) dropItem(w, ent.pos, ItemType.RAW_BEEF);
-                             if (ent.type === MobType.SLIME || ent.type === MobType.GIANT_SLIME) dropItem(w, ent.pos, ItemType.SLIME_BALL);
-                             if (ent.type === MobType.SPIDER) dropItem(w, ent.pos, ItemType.STRING);
-                         }
+                         setStats(prev => ({ ...prev, score: prev.score + 100, gold: prev.gold + 10 }));
                      }
                  }
              }
          }
      }
   }
+
 
   // Mobs & Entities Update - ONLY HOST runs this
   if (!isClient) {

@@ -90,11 +90,24 @@ export const updateHostileMob = (ent: Entity, playerPos: Vector2, world: WorldSt
                     if (diff > Math.PI) diff = (Math.PI*2) - diff;
                     
                     if (diff < Math.PI / 2) {
-                        // Blocked
+                        const isPerfectParry = world.cursor.parryTimer <= 15 && world.cursor.parryCooldown <= 0;
                         const bounce = normalizeVector(getVector(ent.pos, playerPos));
-                        ent.pos.x -= bounce.x * 40;
-                        ent.pos.y -= bounce.y * 40;
-                        ent.attackTimer = cycleTime; // Force reset to wait
+                        
+                        if (isPerfectParry) {
+                            // Perfect Parry: Huge knockback, stun, no damage taken
+                            ent.pos.x -= bounce.x * 80;
+                            ent.pos.y -= bounce.y * 80;
+                            ent.attackTimer = cycleTime * 2; // Stunned longer
+                            
+                            // Visual feedback for parry
+                            world.camShake = 10;
+                            // Add some particles? We can't easily here without spawnParticles, but we can just do camShake
+                        } else {
+                            // Normal Block
+                            ent.pos.x -= bounce.x * 40;
+                            ent.pos.y -= bounce.y * 40;
+                            ent.attackTimer = cycleTime; // Force reset to wait
+                        }
                         return;
                     }
                 }
@@ -148,11 +161,21 @@ export const updateHostileMob = (ent: Entity, playerPos: Vector2, world: WorldSt
                 if (diff > Math.PI) diff = (Math.PI*2) - diff;
                 
                 if (diff < Math.PI / 2) {
-                    // Blocked!
-                    // Knockback mob
-                    ent.pos.x -= move.x * 20;
-                    ent.pos.y -= move.y * 20;
-                    ent.attackTimer = 60;
+                    const isPerfectParry = world.cursor.parryTimer <= 15 && world.cursor.parryCooldown <= 0;
+                    
+                    if (isPerfectParry) {
+                        // Perfect Parry
+                        ent.pos.x -= move.x * 60;
+                        ent.pos.y -= move.y * 60;
+                        ent.attackTimer = 120; // Stunned
+                        world.camShake = 10;
+                    } else {
+                        // Normal Block!
+                        // Knockback mob
+                        ent.pos.x -= move.x * 20;
+                        ent.pos.y -= move.y * 20;
+                        ent.attackTimer = 60;
+                    }
                     return; 
                 }
             }

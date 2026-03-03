@@ -47,12 +47,22 @@ export const updateBoss = (ent: Entity, playerPos: Vector2, world: WorldState, s
                 if (diff > Math.PI) diff = (Math.PI*2) - diff;
                 
                 if (diff < Math.PI / 2) {
-                    // Blocked!
-                    // Boss Knockback (Heavy resistance compared to normal mobs)
+                    const isPerfectParry = world.cursor.parryTimer <= 15 && world.cursor.parryCooldown <= 0;
                     const bounce = normalizeVector(getVector(ent.pos, playerPos));
-                    ent.pos.x -= bounce.x * 15; 
-                    ent.pos.y -= bounce.y * 15;
-                    ent.attackTimer = cycleTime; // Stun/Reset cycle briefly
+                    
+                    if (isPerfectParry) {
+                        // Perfect Parry
+                        ent.pos.x -= bounce.x * 40; 
+                        ent.pos.y -= bounce.y * 40;
+                        ent.attackTimer = cycleTime * 1.5; // Stunned
+                        world.camShake = 15;
+                    } else {
+                        // Normal Block!
+                        // Boss Knockback (Heavy resistance compared to normal mobs)
+                        ent.pos.x -= bounce.x * 15; 
+                        ent.pos.y -= bounce.y * 15;
+                        ent.attackTimer = cycleTime; // Stun/Reset cycle briefly
+                    }
                     return;
                 }
             }

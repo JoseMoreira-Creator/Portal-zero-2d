@@ -12,6 +12,9 @@ interface HudProps {
   toggleMap: () => void;
   isMapOpen: boolean;
   onOpenOptions: () => void;
+  onSelectSlot: (index: number) => void;
+  onOpenInventory: () => void;
+  onDragStart: (index: number, x: number, y: number) => void;
 }
 
 // Reusable Bar Component
@@ -50,7 +53,9 @@ const StatusBar: React.FC<{
     );
 };
 
-export const Hud: React.FC<HudProps> = ({ stats, inventory, selectedIndex, timeOfDay, dayCount, toggleMap, isMapOpen, onOpenOptions }) => {
+export const Hud: React.FC<HudProps> = ({ stats, inventory, selectedIndex, timeOfDay, dayCount, toggleMap, isMapOpen, onOpenOptions, onSelectSlot,  onOpenInventory, 
+  onDragStart 
+}) => {
   
   return (
     <div className="absolute inset-0 pointer-events-none select-none z-10 flex flex-col justify-between p-4">
@@ -104,7 +109,7 @@ export const Hud: React.FC<HudProps> = ({ stats, inventory, selectedIndex, timeO
       <div className="flex flex-col items-center w-full mb-4">
         
         {/* Status Bars Container */}
-        <div className="flex flex-col w-[400px] mb-3 gap-1 relative">
+        <div className="flex flex-col w-[90%] max-w-[400px] mb-3 gap-1 relative">
              
              <div className="flex gap-2 w-full">
                  {/* HP BAR */}
@@ -134,7 +139,19 @@ export const Hud: React.FC<HudProps> = ({ stats, inventory, selectedIndex, timeO
           {inventory.slice(0, 9).map((slot, i) => (
              <div 
                key={i}
-               className={`w-12 h-12 bg-[#8b8b8b] border-2 ${i === selectedIndex ? 'border-white bg-[#a0a0a0] ring-2 ring-black z-10' : 'border-[#373737]'} relative flex items-center justify-center transition-transform`}
+               onMouseDown={(e) => {
+                 if (e.button === 0) {
+                   onDragStart(i, e.clientX, e.clientY);
+                 }
+               }}
+               onClick={() => {
+                 if (i === selectedIndex) {
+                   onOpenInventory();
+                 } else {
+                   onSelectSlot(i);
+                 }
+               }}
+               className={`w-12 h-12 bg-[#8b8b8b] border-2 cursor-pointer ${i === selectedIndex ? 'border-white bg-[#a0a0a0] ring-2 ring-black z-10' : 'border-[#373737]'} relative flex items-center justify-center transition-transform`}
              >
                 <span className="text-2xl filter drop-shadow-sm">{ITEM_ICONS[slot.item] || ''}</span>
                 {slot.count > 1 && (
@@ -145,7 +162,7 @@ export const Hud: React.FC<HudProps> = ({ stats, inventory, selectedIndex, timeO
         </div>
         
         {/* XP Bar Placeholder */}
-        <div className="w-[440px] h-2 bg-black mt-3 border border-white/20 relative opacity-80">
+        <div className="w-[90%] max-w-[440px] h-2 bg-black mt-3 border border-white/20 relative opacity-80">
             <div className="h-full bg-green-500 w-[0%]"></div>
         </div>
         

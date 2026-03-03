@@ -52,7 +52,8 @@ const App: React.FC = () => {
   // Game Settings State
   const [settings, setSettings] = useState<GameSettings>({
       animations: true,
-      zoom: 1.0
+      zoom: 1.0,
+      mobileControlStyle: 'joystick'
   });
 
   const [stats, setStats] = useState<PlayerStats>({
@@ -286,7 +287,7 @@ const App: React.FC = () => {
            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center" 
            style={{ backgroundColor: '#1a0f0a', backgroundImage: `radial-gradient(#2d1e16 2px, transparent 2px)`, backgroundSize: '32px 32px' }}>
                <h1 className="text-5xl text-black mb-8 pixel-shadow">MULTIPLAYER</h1>
-               <div className="mc-panel p-6 w-96 bg-[#c6c6c6] flex flex-col gap-4">
+               <div className="mc-panel p-6 w-[90%] max-w-96 bg-[#c6c6c6] flex flex-col gap-4">
                    <button 
                        onClick={() => {
                            setMultiplayerMode('HOST');
@@ -338,10 +339,10 @@ const App: React.FC = () => {
           }}
         >
           <div className="flex flex-col items-center mb-8">
-            <h1 className="text-6xl mb-1 text-[#7f7f7f] pixel-shadow tracking-tighter" style={{ textShadow: '3px 3px #000' }}>
+            <h1 className="text-6xl mb-1 text-[#222] pixel-shadow tracking-tighter" style={{ textShadow: '3px 3px #fff' }}>
               PORTAL
             </h1>
-            <h2 className="text-6xl text-[#7f7f7f] pixel-shadow tracking-tighter -mt-2" style={{ textShadow: '3px 3px #000' }}>
+            <h2 className="text-6xl text-[#222] pixel-shadow tracking-tighter -mt-2" style={{ textShadow: '3px 3px #fff' }}>
               ZERO 2D
             </h2>
             <div className="bg-yellow-300 text-black px-2 py-0.5 transform -rotate-12 mt-4 text-base border-2 border-white animate-bounce">
@@ -349,19 +350,19 @@ const App: React.FC = () => {
             </div>
           </div>
           
-          <div className="mc-panel p-4 w-72 flex flex-col gap-2">
+          <div className="mc-panel p-4 w-[90%] max-w-72 flex flex-col gap-2">
              <button 
               onClick={() => {
                   setMultiplayerMode(null);
                   setGameState(GameState.WORLD_SELECT);
               }}
-              className="mc-btn w-full py-2 text-base font-bold text-[#ddd]"
+              className="mc-btn w-full py-2 text-base font-bold"
             >
               Singleplayer
             </button>
             <button 
               onClick={() => setGameState(GameState.MULTIPLAYER_MENU)}
-              className="mc-btn w-full py-2 text-base font-bold text-[#ddd]"
+              className="mc-btn w-full py-2 text-base font-bold"
             >
               Multiplayer
             </button>
@@ -369,12 +370,12 @@ const App: React.FC = () => {
             <div className="flex gap-2 w-full mt-2">
                 <button 
                   onClick={() => setShowOptions(true)}
-                  className="mc-btn flex-1 py-2 text-base font-bold text-[#ddd]"
+                  className="mc-btn flex-1 py-2 text-base font-bold"
                 >
                   Options / Extras
                 </button>
                 <button 
-                  className="mc-btn w-12 py-2 text-base font-bold text-[#ddd]"
+                  className="mc-btn w-12 py-2 text-base font-bold"
                   disabled
                 >
                   X
@@ -382,10 +383,10 @@ const App: React.FC = () => {
             </div>
           </div>
           
-          <p className="absolute bottom-2 left-2 text-gray-500 text-xs">Minecraft 1.7.0 (Modded)</p>
-          <p className="absolute bottom-2 right-2 text-gray-500 text-xs">Copyright Mojang AB (Not really)</p>
+          <p className="absolute bottom-2 left-2 text-[#444] text-xs font-bold">Minecraft 1.7.0 (Modded)</p>
+          <p className="absolute bottom-2 right-2 text-[#444] text-xs font-bold">Copyright Mojang AB (Not really)</p>
           
-          <p className="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-[#555] text-xs font-mono tracking-widest uppercase opacity-50">
+          <p className="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-[#222] text-xs font-mono tracking-widest uppercase opacity-75 font-bold">
             JÁ SOMOS {TOTAL_LOC} LINHAS DE CÓDIGO
           </p>
         </div>
