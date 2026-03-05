@@ -12,7 +12,7 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
   const entities: Entity[] = [];
   const waterBodies: { x: number, y: number, radius: number }[] = [];
   
-  const spawnPos = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
+  const spawnPos = { x: 0, y: 0 };
   const SAFE_ZONE_RADIUS = 200; // Area around spawn that must remain empty
 
   // Generate Water Ponds
@@ -59,10 +59,21 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
     }
 
     if (!overlap) {
-        const isBirch = Math.random() < 0.3; 
+        const rand = Math.random();
+        let type: 'TREE' | 'BIRCH_TREE' | 'VINE_TREE' = 'TREE';
+        let color = COLORS.WOOD;
+
+        if (rand < 0.2) {
+            type = 'BIRCH_TREE';
+            color = COLORS.BIRCH_WOOD;
+        } else if (rand < 0.3) {
+            type = 'VINE_TREE';
+            color = '#8BC34A'; // Vine color
+        }
+
         entities.push({
             id: `tree-${entities.length}`,
-            type: isBirch ? 'BIRCH_TREE' : 'TREE',
+            type,
             pos,
             vel: { x: 0, y: 0 },
             hp: GAME_BALANCE.TREE_HP,
@@ -70,7 +81,7 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
             state: 'IDLE',
             attackTimer: 0,
             size: 32,
-            color: isBirch ? COLORS.BIRCH_WOOD : COLORS.WOOD,
+            color,
             faceDirection: 1
         });
     }
@@ -129,7 +140,7 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
       }
   }
 
-  const inventory = Array.from({ length: 36 }, () => ({ item: ItemType.EMPTY, count: 0 }));
+  const inventory = Array.from({ length: 4 }, () => ({ item: ItemType.EMPTY, count: 0 }));
 
   return {
     dimension: 'SURFACE',
@@ -163,6 +174,7 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
       isInventoryOpen: false,
       isCraftingTableOpen: false,
       isAnvilOpen: false,
+      isBackpackEquipped: false,
       parryActive: false,
       parryTimer: 0,
       parryCooldown: 0,
@@ -179,6 +191,7 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
       autoAction: 'NONE',
       autoTargetId: null
     },
+    cameraPos: { ...spawnPos },
     // Multiplayer defaults
     remotePlayers: {},
     isMultiplayer: false,
@@ -794,7 +807,6 @@ export const updateGame = (
                          if (ent.type === MobType.CHICKEN) dropItem(w, ent.pos, ItemType.RAW_BEEF);
                          if (ent.type === MobType.SHEEP) dropItem(w, ent.pos, ItemType.RAW_BEEF);
                          if (ent.type === MobType.SLIME || ent.type === MobType.GIANT_SLIME) dropItem(w, ent.pos, ItemType.SLIME_BALL);
-                         if (ent.type === MobType.SPIDER) dropItem(w, ent.pos, ItemType.STRING);
                          if (ent.type === MobType.CREEPER) dropItem(w, ent.pos, ItemType.COAL);
                          
                          setStats(prev => ({ ...prev, score: prev.score + 100, gold: prev.gold + 10 }));

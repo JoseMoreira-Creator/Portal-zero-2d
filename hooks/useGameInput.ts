@@ -16,6 +16,7 @@ interface UseGameInputProps {
 export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZoom, onZoomChange }: UseGameInputProps) => {
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!world.current) return;
     // PURE SCREEN COORDINATES
     world.current.cursor.screenMousePos = { x: e.clientX, y: e.clientY };
     
@@ -26,7 +27,7 @@ export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZ
   }, [world]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (gameState !== GameState.PLAYING) return;
+    if (gameState !== GameState.PLAYING || !world.current) return;
     if (isChatOpen) return; // BLOCK INPUTS WHEN CHAT IS OPEN
     
     const key = e.key.toLowerCase();
@@ -71,6 +72,7 @@ export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZ
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     // We allow KeyUp even if chat is open to prevent "stuck" keys if user opens chat while walking
+    if (!world.current) return;
     const key = e.key.toLowerCase();
     if (key === 'w') world.current.cursor.keys.w = false;
     if (key === 'a') world.current.cursor.keys.a = false;
@@ -79,7 +81,7 @@ export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZ
   }, [world]);
 
   const handleMouseDown = useCallback((e: MouseEvent) => {
-    if (gameState !== GameState.PLAYING) return;
+    if (gameState !== GameState.PLAYING || !world.current) return;
     if (world.current.cursor.isInventoryOpen || isChatOpen) return; 
 
     const cursor = world.current.cursor;
@@ -89,12 +91,13 @@ export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZ
   }, [gameState, world, isChatOpen]);
 
   const handleMouseUp = useCallback((e: MouseEvent) => {
+    if (!world.current) return;
     if (e.button === 0) world.current.cursor.isLeftDown = false;
     if (e.button === 2) world.current.cursor.isRightDown = false;
   }, [world]);
 
   const handleWheel = useCallback((e: WheelEvent) => {
-    if (gameState !== GameState.PLAYING) return;
+    if (gameState !== GameState.PLAYING || !world.current) return;
     if (world.current.cursor.isInventoryOpen || isChatOpen) return;
 
     const direction = e.deltaY > 0 ? 1 : -1;

@@ -18,11 +18,8 @@ export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose
       setSettings(prev => ({ ...prev, animations: !prev.animations }));
   };
 
-  const toggleMobileControlStyle = () => {
-      setSettings(prev => ({ 
-          ...prev, 
-          mobileControlStyle: prev.mobileControlStyle === 'joystick' ? 'dpad' : 'joystick' 
-      }));
+  const toggleCoordinates = () => {
+      setSettings(prev => ({ ...prev, showCoordinates: !prev.showCoordinates }));
   };
 
   const handleZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,17 +48,17 @@ export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose
                 </button>
             </div>
 
-            {/* Mobile Controls Toggle */}
+            {/* Coordinates Toggle */}
             <div className="flex justify-between items-center bg-[#a0a0a0] p-3 border-2 border-[#555]">
                 <div className="flex flex-col">
-                    <span className="text-lg font-bold text-[#222]">Mobile Controls</span>
-                    <span className="text-xs text-[#444]">Joystick or D-Pad</span>
+                    <span className="text-lg font-bold text-[#222]">Coordinates</span>
+                    <span className="text-xs text-[#444]">Show player position</span>
                 </div>
                 <button 
-                    onClick={toggleMobileControlStyle}
-                    className="mc-btn w-24 py-2 font-bold text-[#222]"
+                    onClick={toggleCoordinates}
+                    className={`mc-btn w-24 py-2 font-bold ${settings.showCoordinates ? 'text-green-800' : 'text-red-800'}`}
                 >
-                    {settings.mobileControlStyle === 'joystick' ? 'JOYSTICK' : 'D-PAD'}
+                    {settings.showCoordinates ? 'ON' : 'OFF'}
                 </button>
             </div>
 

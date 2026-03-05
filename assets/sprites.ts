@@ -40,21 +40,33 @@ export const SPRITE_URLS: Record<string, string> = {
 export const LOADED_SPRITES: Record<string, HTMLImageElement> = {};
 
 // Função chamada pelo App.tsx para carregar tudo
-export const loadSprites = () => {
+export const loadSprites = (): Promise<void> => {
+    const promises: Promise<void>[] = [];
+    
     Object.entries(SPRITE_URLS).forEach(([key, url]) => {
         if (url && url.length > 0) {
-            const img = new Image();
-            
-            if (url.startsWith('http')) {
-                img.crossOrigin = "Anonymous";
-            }
-            
-            img.src = url;
-            
-            img.onload = () => console.log(`[SPRITE] Carregado: ${key}`);
-            img.onerror = () => console.warn(`[SPRITE] Erro ao carregar: ${key} (${url}). Verifique se o arquivo existe na pasta public/sprites.`);
-            
-            LOADED_SPRITES[key] = img;
+            promises.push(new Promise((resolve) => {
+                const img = new Image();
+                
+                if (url.startsWith('http')) {
+                    img.crossOrigin = "Anonymous";
+                }
+                
+                img.src = url;
+                
+                img.onload = () => {
+                    console.log(`[SPRITE] Carregado: ${key}`);
+                    resolve();
+                };
+                img.onerror = () => {
+                    console.warn(`[SPRITE] Erro ao carregar: ${key} (${url}).`);
+                    resolve(); // Resolve anyway to not block the game
+                };
+                
+                LOADED_SPRITES[key] = img;
+            }));
         }
     });
+    
+    return Promise.all(promises).then(() => {});
 };

@@ -10,13 +10,15 @@ interface InventoryProps {
   updateInventory: (newInv: InventorySlot[]) => void;
   close: () => void;
   onOpenOptions: () => void;
+  addSystemMsg: (msg: string, isError?: boolean) => void;
 }
 
-export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, close, onOpenOptions }) => {
+export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, close, onOpenOptions, addSystemMsg }) => {
   const [hand, setHand] = useState<InventorySlot>({ item: ItemType.EMPTY, count: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isRightDragging, setIsRightDragging] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<ItemType | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, index: number, isCraft: boolean } | null>(null);
   
   // Force update trigger for Equipment changes
   const [_, setForceUpdate] = useState(0);
@@ -151,49 +153,6 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
           return { item: ItemType.EMPTY, count: 0 };
       });
       setCraftGrid(newGrid);
-  };
-
-  // --- EQUIPMENT LOGIC ---
-
-  const getArmorType = (item: ItemType): 'head' | 'chest' | 'legs' | 'feet' | null => {
-      if (item.includes('HELMET')) return 'head';
-      if (item.includes('CHEST')) return 'chest';
-      if (item.includes('LEGS')) return 'legs';
-      if (item.includes('BOOTS')) return 'feet';
-      return null;
-  };
-
-  const handleEquipmentClick = (slotKey: keyof Equipment) => {
-      const currentEq = cursor.equipment[slotKey];
-      
-      // If hand is empty, pick up equipment
-      if (hand.item === ItemType.EMPTY) {
-          if (currentEq.item !== ItemType.EMPTY) {
-              setHand({ ...currentEq });
-              cursor.equipment[slotKey] = { item: ItemType.EMPTY, count: 0 };
-              setForceUpdate(prev => prev + 1);
-          }
-          return;
-      }
-
-      // If hand has item
-      // Check if item is valid for this slot (Cosmetic slots accept anything visual ideally, but let's restrict to armor types for now to keep it simple, or any item for fun)
-      // Actually, standard Terraria logic: Functional slots enforce type. Cosmetic slots enforce type mostly.
-      
-      const isCosmetic = slotKey.startsWith('c');
-      const baseSlot = isCosmetic ? slotKey.substring(1).toLowerCase() : slotKey;
-      const armorType = getArmorType(hand.item);
-
-      // Validation
-      if (!isCosmetic && armorType !== baseSlot) return; // Cannot put non-matching armor in functional slot
-      if (isCosmetic && armorType !== baseSlot && armorType !== null) return; // Optional: restrict cosmetics to armor types too for now
-      if (isCosmetic && armorType === null) return; // Only allow armor in cosmetics for now to prevent weird rendering issues
-
-      // Swap
-      const temp = { ...currentEq };
-      cursor.equipment[slotKey] = { ...hand }; // Place hand item
-      setHand(temp); // Pickup eq item (or empty)
-      setForceUpdate(prev => prev + 1);
   };
 
   // --- INTERACTION HANDLERS ---
@@ -386,6 +345,12 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
       
       const currentSlot = isCraftingInput ? craftGrid[index] : cursor.inventory[index];
 
+      // Open context menu if hand is empty
+      if (hand.item === ItemType.EMPTY && currentSlot.item !== ItemType.EMPTY) {
+          setContextMenu({ x: e.clientX, y: e.clientY, index, isCraft: isCraftingInput });
+          return;
+      }
+
       // Case 1: Hand has items -> Place 1
       if (hand.item !== ItemType.EMPTY) {
           setIsRightDragging(true); 
@@ -515,29 +480,67 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
         {/* Main Panel */}
         <div className="mc-panel p-4 bg-[#c6c6c6] flex flex-col gap-4 relative">
             
-            {/* Top Section: Character/Equipment + Crafting */}
-            <div className="flex gap-4">
-                {/* Left Column: Equipment */}
-                <div className="flex flex-col gap-2 p-2 bg-[#a0a0a0] border-2 border-[#555]">
-                    <h3 className="text-[#222] font-bold text-center text-sm mb-1">EQUIP</h3>
-                    <div className="flex gap-2">
-                        {/* Functional */}
-                        <div className="flex flex-col gap-1">
-                            {renderEquipmentSlot('head', '🪖')}
-                            {renderEquipmentSlot('chest', '👕')}
-                            {renderEquipmentSlot('legs', '👖')}
-                            {renderEquipmentSlot('feet', '👢')}
-                        </div>
-                        {/* Cosmetic */}
-                        <div className="flex flex-col gap-1">
-                            {renderEquipmentSlot('cHead', '👁️', true)}
-                            {renderEquipmentSlot('cChest', '👁️', true)}
-                            {renderEquipmentSlot('cLegs', '👁️', true)}
-                            {renderEquipmentSlot('cFeet', '👁️', true)}
-                        </div>
-                    </div>
+            {/* Context Menu */}
+            {contextMenu && (
+                <div 
+                    className="absolute z-[100] bg-[#c6c6c6] border-2 border-black p-1 shadow-xl flex flex-col gap-1"
+                    style={{ left: contextMenu.x, top: contextMenu.y }}
+                >
+                    <button 
+                        className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
+                        onClick={() => {
+                            // Equip logic
+                            const slot = contextMenu.isCraft ? craftGrid[contextMenu.index] : cursor.inventory[contextMenu.index];
+                            if (slot.item === ItemType.BACKPACK && !cursor.isBackpackEquipped) {
+                                cursor.isBackpackEquipped = true;
+                                // Increase inventory size
+                                const newInv = [...cursor.inventory];
+                                // Remove backpack from inventory
+                                newInv[contextMenu.index] = { item: ItemType.EMPTY, count: 0 };
+                                // Add more slots
+                                for(let i=0; i<36; i++) newInv.push({ item: ItemType.EMPTY, count: 0 });
+                                updateInventory(newInv);
+                                addSystemMsg(`Equipped Backpack! Inventory expanded.`);
+                            } else if (slot.item.includes('HELMET') || slot.item.includes('CHEST') || slot.item.includes('LEGS') || slot.item.includes('BOOTS')) {
+                                addSystemMsg(`Equipped ${slot.item}`);
+                            }
+                            setContextMenu(null);
+                        }}
+                    >
+                        🛡️ EQUIP
+                    </button>
+                    <button 
+                        className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
+                        onClick={() => {
+                            // Drop logic
+                            const index = contextMenu.index;
+                            const isCraft = contextMenu.isCraft;
+                            
+                            if (isCraft) {
+                                const newGrid = [...craftGrid];
+                                newGrid[index] = { item: ItemType.EMPTY, count: 0 };
+                                setCraftGrid(newGrid);
+                            } else {
+                                const newInv = [...cursor.inventory];
+                                newInv[index] = { item: ItemType.EMPTY, count: 0 };
+                                updateInventory(newInv);
+                            }
+                            setContextMenu(null);
+                        }}
+                    >
+                        🗑️ DROP
+                    </button>
+                    <button 
+                        className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
+                        onClick={() => setContextMenu(null)}
+                    >
+                        ❌ CLOSE
+                    </button>
                 </div>
-
+            )}
+            
+            {/* Top Section: Crafting */}
+            <div className="flex gap-4">
                 {/* Right Column: Crafting */}
                 <div className="flex flex-col gap-2 flex-1">
                     <h2 className="text-[#444] text-2xl font-bold px-1">
@@ -585,11 +588,8 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
             
             {/* Inventory Slots */}
             <div className="p-0">
-                <div className="grid grid-cols-9 gap-1 mb-4">
-                    {cursor.inventory.slice(9).map((slot, i) => renderSlot(slot, i + 9))}
-                </div>
                 <div className="flex gap-1 pt-2 border-t-2 border-[#888]">
-                    {cursor.inventory.slice(0, 9).map((slot, i) => renderSlot(slot, i))}
+                    {cursor.inventory.slice(0, 4).map((slot, i) => renderSlot(slot, i))}
                 </div>
             </div>
         </div>

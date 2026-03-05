@@ -46,14 +46,17 @@ const App: React.FC = () => {
     }
 
     // 2. Load Custom Images
-    loadSprites();
+    setIsLoading(true);
+    loadSprites().then(() => {
+        setIsLoading(false);
+    });
   }, []);
 
   // Game Settings State
   const [settings, setSettings] = useState<GameSettings>({
       animations: true,
       zoom: 1.0,
-      mobileControlStyle: 'joystick'
+      showCoordinates: false
   });
 
   const [stats, setStats] = useState<PlayerStats>({
@@ -116,6 +119,12 @@ const App: React.FC = () => {
           if (rawData) {
               try {
                   const worldState = JSON.parse(rawData);
+                  
+                  // Migration: Ensure cameraPos exists for old saves
+                  if (!worldState.cameraPos) {
+                      worldState.cameraPos = { ...worldState.cursor.pos };
+                  }
+
                   setActiveWorldId(id);
                   setActiveWorldState(worldState);
                   

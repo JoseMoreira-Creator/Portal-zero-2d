@@ -74,8 +74,10 @@ export const CRAFTING_RECIPES = [
   { inputs: ['IRON', 'IRON', 'IRON', 'IRON', 'IRON', 'IRON', 'IRON', 'IRON'], output: 'ANVIL', count: 1 },
   // Ladder: 7 Planks (Usually H-shape, here just 7 inputs) -> Output 1
   { inputs: ['PLANKS', 'PLANKS', 'PLANKS', 'PLANKS', 'PLANKS', 'PLANKS', 'PLANKS'], output: 'LADDER', count: 1 },
-  // Bow: 3 Sticks + 3 Strings
-  { inputs: ['STICK', 'STICK', 'STICK', 'STRING', 'STRING', 'STRING'], output: 'BOW', count: 1 },
+  // Bow: 3 Sticks + 3 Vines
+  { inputs: ['STICK', 'STICK', 'STICK', 'VINE', 'VINE', 'VINE'], output: 'BOW', count: 1 },
+  // Backpack: 4 Leather (not implemented) or 4 Planks + 2 Vines
+  { inputs: ['PLANKS', 'PLANKS', 'PLANKS', 'PLANKS', 'VINE', 'VINE'], output: 'BACKPACK', count: 1 },
   // Iron Armor
   { inputs: ['IRON', 'IRON', 'IRON', 'IRON', 'IRON'], output: 'HELMET_IRON', count: 1 },
   { inputs: ['IRON', 'IRON', 'IRON', 'IRON', 'IRON', 'IRON', 'IRON', 'IRON'], output: 'CHEST_IRON', count: 1 },

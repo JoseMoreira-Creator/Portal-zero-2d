@@ -219,7 +219,7 @@ export const GameWiki: React.FC<GameWikiProps> = ({ onClose }) => {
                 <ItemCard name="Anvil" icon={ITEM_ICONS[ItemType.ANVIL]} desc="Heavy crafting (4x4 grid)." />
                 <ItemCard name="Torch" icon={ITEM_ICONS[ItemType.TORCH]} desc="Provides light. Thrown or Placed." />
                 <ItemCard name="Ladder" icon={ITEM_ICONS[ItemType.LADDER]} desc="Used to access the Underground." />
-                <ItemCard name="String" icon={ITEM_ICONS[ItemType.STRING]} desc="Dropped by Spiders." />
+                <ItemCard name="Vine" icon={ITEM_ICONS[ItemType.VINE]} desc="Dropped by Spiders." />
                 <ItemCard name="Wood" icon={ITEM_ICONS[ItemType.WOOD]} />
                 <ItemCard name="Planks" icon={ITEM_ICONS[ItemType.PLANKS]} />
                 <ItemCard name="Stick" icon={ITEM_ICONS[ItemType.STICK]} />

@@ -12,7 +12,7 @@ export enum GameState {
 export interface GameSettings {
   animations: boolean;
   zoom: number;
-  mobileControlStyle: 'joystick' | 'dpad';
+  showCoordinates: boolean;
 }
 
 export interface Attributes {
@@ -57,8 +57,9 @@ export enum ItemType {
   COAL = 'COAL',
   CHARCOAL = 'CHARCOAL',
   PAPER = 'PAPER',
-  STRING = 'STRING', // New Item
+  VINE = 'VINE', // Renamed from STRING
   SLIME_BALL = 'SLIME_BALL',
+  BACKPACK = 'BACKPACK',
   
   // Food
   RAW_BEEF = 'RAW_BEEF',
@@ -146,7 +147,7 @@ export interface Particle {
 export interface Entity {
   id: string;
   // Expanded types to include placeable blocks
-  type: MobType | 'TREE' | 'BIRCH_TREE' | 'CRAFTING_TABLE' | 'ROCK' | 'COAL_ORE' | 'IRON_ORE' | ItemType.WOOD | ItemType.BIRCH_WOOD | ItemType.PLANKS | ItemType.FURNACE | ItemType.ANVIL | ItemType.TORCH | ItemType.DOOR | ItemType.LADDER;
+  type: MobType | 'TREE' | 'BIRCH_TREE' | 'VINE_TREE' | 'CRAFTING_TABLE' | 'ROCK' | 'COAL_ORE' | 'IRON_ORE' | ItemType.WOOD | ItemType.BIRCH_WOOD | ItemType.PLANKS | ItemType.FURNACE | ItemType.ANVIL | ItemType.TORCH | ItemType.DOOR | ItemType.LADDER;
   pos: Vector2;
   vel: Vector2;
   hp: number;
@@ -186,6 +187,7 @@ export interface CursorState {
   isInventoryOpen: boolean;
   isCraftingTableOpen: boolean;
   isAnvilOpen: boolean; // 4x4 Grid
+  isBackpackEquipped: boolean;
   
   // Combat States
   parryActive: boolean; 
@@ -238,6 +240,7 @@ export interface WorldState {
   items: { id: string, type: ItemType, pos: Vector2, life: number }[]; 
   waterBodies: { x: number, y: number, radius: number }[];
   cursor: CursorState;
+  cameraPos: Vector2; // New camera position
   
   // Multiplayer
   remotePlayers: Record<string, RemotePlayer>;

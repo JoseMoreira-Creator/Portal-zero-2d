@@ -5,10 +5,9 @@ import { SCREEN_HEIGHT, SCREEN_WIDTH, GAME_BALANCE, MAX_STACK } from '../constan
 import { createInitialWorld, updateGame } from '../game/logic';
 import { renderGame } from '../game/renderer';
 import { useGameInput } from '../hooks/useGameInput';
-import { Hud } from './UI/Hud';
-import { MobileControls } from './UI/MobileControls';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { Inventory } from './UI/Inventory';
+import { Hotbar } from './UI/Hotbar';
 import { Chat } from './UI/Chat';
 import { useMultiplayer } from '../hooks/useMultiplayer';
 import { getDistance, normalizeVector, getVector, scaleVector } from '../utils/math';
@@ -89,6 +88,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     if (initialWorldState) {
         world.current = initialWorldState;
+        // Safety check for old saves
+        if (!world.current.cameraPos) {
+            world.current.cameraPos = { ...world.current.cursor.pos };
+        }
     } else if (!world.current) {
         // Fallback for safety
         world.current = createInitialWorld(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -96,13 +99,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [initialWorldState]);
 
   const [showInventory, setShowInventory] = useState(false);
+  const [playerMenuOpen, setPlayerMenuOpen] = useState(false);
+  const [playerMenuPos, setPlayerMenuPos] = useState({ x: 0, y: 0 });
   const [cursorStyle, setCursorStyle] = useState('cursor-none');
-  const [controlsVisible, setControlsVisible] = useState(true);
   
   const [inventorySnapshot, setInventorySnapshot] = useState<InventorySlot[]>([]);
   const [hotbarIndex, setHotbarIndex] = useState(0);
   const [dayCount, setDayCount] = useState(1);
   const [mapOpen, setMapOpen] = useState(false);
+  const [tick, setTick] = useState(0);
+  const [showCoordinates, setShowCoordinates] = useState(false);
 
   // CHAT STATE
   const [chatOpen, setChatOpen] = useState(false);
@@ -111,6 +117,45 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, entityId: string } | null>(null);
   const [draggedItem, setDraggedItem] = useState<{ index: number, x: number, y: number } | null>(null);
   const isMobile = useIsMobile();
+  
+  // Pinch zoom state
+  const [initialDistance, setInitialDistance] = useState<number | null>(null);
+  const [initialZoom, setInitialZoom] = useState<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+      if (e.touches.length === 2) {
+          const dist = getDistance(
+              { x: e.touches[0].clientX, y: e.touches[0].clientY },
+              { x: e.touches[1].clientX, y: e.touches[1].clientY }
+          );
+          setInitialDistance(dist);
+          setInitialZoom(world.current.zoom);
+      }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+      if (e.touches.length === 2 && initialDistance !== null && initialZoom !== null) {
+          const dist = getDistance(
+              { x: e.touches[0].clientX, y: e.touches[0].clientY },
+              { x: e.touches[1].clientX, y: e.touches[1].clientY }
+          );
+          const scale = dist / initialDistance;
+          const newZoom = Math.max(0.5, Math.min(3, initialZoom * scale));
+          world.current.zoom = newZoom;
+      }
+  };
+
+  const handleTouchEnd = () => {
+      setInitialDistance(null);
+      setInitialZoom(null);
+  };
+
+  // Input State Refs
+  const isDraggingPlayer = useRef(false);
+  const isPanning = useRef(false);
+  const dragStartPos = useRef({ x: 0, y: 0 }); // Screen coords
+  const cameraStartPos = useRef({ x: 0, y: 0 }); // World coords
+  const playerDragCurrentPos = useRef<{ x: number, y: number } | null>(null); // World coords
 
   // MULTIPLAYER HOOK
   const mpControls = useMultiplayer({ gameState, world, setChatMessages });
@@ -253,136 +298,132 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       return () => window.removeEventListener('keydown', handleChatKey);
   }, [gameState, chatOpen]);
 
-  // COMBAT INPUT HANDLING (Tap vs Drag)
-  const mouseDownTime = useRef<number>(0);
-  const mouseDownPos = useRef<{x: number, y: number}>({x:0, y:0});
-
+  // NEW INPUT HANDLING
   useEffect(() => {
-      const handleMouseDown = (e: MouseEvent) => {
-        if (gameState !== GameState.PLAYING) return;
-        if (world.current.cursor.isInventoryOpen) return;
-        if (chatOpen) return;
-
-        mouseDownTime.current = Date.now();
-        mouseDownPos.current = { x: e.clientX, y: e.clientY };
-
-        if (e.button === 2) {
-          // Parry (Right Click)
-          if (world.current.cursor.parryCooldown <= 0) {
-            world.current.cursor.parryActive = true;
-            world.current.cursor.parryTimer = 0;
-          }
-        }
+      const screenToWorld = (sx: number, sy: number) => {
+          const w = world.current;
+          const zoom = w.zoom;
+          const cx = window.innerWidth / 2;
+          const cy = window.innerHeight / 2;
+          return {
+              x: (sx - cx) / zoom + w.cameraPos.x,
+              y: (sy - cy) / zoom + w.cameraPos.y
+          };
       };
 
-      const handleMouseUp = (e: MouseEvent) => {
-        if (gameState !== GameState.PLAYING) return;
+      const handleDown = (clientX: number, clientY: number) => {
+          if (gameState !== GameState.PLAYING) return;
+          if (playerMenuOpen || contextMenu || showInventory) return;
 
-        if (draggedItem) {
-            const dropPos = world.current.cursor.mousePos;
-            const slot = world.current.cursor.inventory[draggedItem.index];
-            if (slot.item !== ItemType.EMPTY) {
-                // Throw logic
-                if (slot.item === ItemType.TORCH) {
-                    world.current.projectiles.push({
-                        id: Math.random().toString(),
-                        pos: { ...world.current.cursor.pos },
-                        vel: scaleVector(normalizeVector(getVector(world.current.cursor.pos, dropPos)), 12),
-                        radius: 8,
-                        isEnemy: false,
-                        damage: 25,
-                        color: '#ff6600',
-                        type: 'TORCH',
-                        life: 100
-                    });
-                    slot.count--;
-                    if (slot.count <= 0) slot.item = ItemType.EMPTY;
-                } else {
-                    // Drop item
-                    world.current.items.push({
-                        id: Math.random().toString(),
-                        type: slot.item,
-                        pos: { ...dropPos },
-                        life: 600
-                    });
-                    slot.count--;
-                    if (slot.count <= 0) slot.item = ItemType.EMPTY;
-                }
-            }
-            setDraggedItem(null);
-            return;
-        }
+          const worldPos = screenToWorld(clientX, clientY);
+          const playerPos = world.current.cursor.pos;
+          const dist = getDistance(worldPos, playerPos);
 
-        if (world.current.cursor.isInventoryOpen) return;
-        if (chatOpen) return;
+          dragStartPos.current = { x: clientX, y: clientY };
 
-        if (e.button === 0) {
-          // Left Click Release
-          const duration = Date.now() - mouseDownTime.current;
-          const dist = Math.hypot(e.clientX - mouseDownPos.current.x, e.clientY - mouseDownPos.current.y);
-
-          if (duration < 200 && dist < 20) {
-            // TAP -> Check for Tree or Move
-            const mouseWorldPos = world.current.cursor.mousePos;
-            const tree = world.current.entities.find(ent => 
-                (ent.type === 'TREE' || ent.type === 'BIRCH_TREE') && 
-                getDistance(mouseWorldPos, ent.pos) < 40
-            );
-
-            if (tree) {
-                setContextMenu({ x: e.clientX, y: e.clientY, entityId: tree.id });
-                world.current.cursor.targetPos = null;
-                world.current.cursor.autoAction = 'NONE';
-                world.current.cursor.autoTargetId = null;
-            } else if (!isMobile || !controlsVisible) {
-                // TOUCH TO MOVE (Only if controls are hidden or not on mobile)
-                world.current.cursor.targetPos = { ...mouseWorldPos };
-                setContextMenu(null);
-                world.current.cursor.autoAction = 'NONE';
-                world.current.cursor.autoTargetId = null;
-            }
+          if (dist < 40) { // Clicked on Player
+              isDraggingPlayer.current = true;
+              playerDragCurrentPos.current = { ...worldPos };
           } else {
-            // DRAG -> SLINGSHOT
-            world.current.cursor.autoAction = 'NONE';
-            world.current.cursor.autoTargetId = null;
-            // Calculate power based on drag distance
-            const power = Math.min(dist / 10, 20); // Cap power
-            if (power > 3 && world.current.cursor.bowCooldown <= 0) {
-                // Spawn Projectile
-                // Drag backwards to aim: Vector is Start - End
-                const aimX = mouseDownPos.current.x - e.clientX;
-                const aimY = mouseDownPos.current.y - e.clientY;
-                const angle = Math.atan2(aimY, aimX);
-                
-                // Add projectile to world
-                world.current.projectiles.push({
-                    id: Math.random().toString(),
-                    pos: { ...world.current.cursor.pos },
-                    vel: { x: Math.cos(angle) * (power * 0.8), y: Math.sin(angle) * (power * 0.8) },
-                    radius: 4,
-                    isEnemy: false,
-                    damage: 10 + power, // Damage scales with power
-                    color: '#fff',
-                    type: 'ARROW',
-                    life: 300
-                });
-                world.current.cursor.bowCooldown = GAME_BALANCE.SLINGSHOT_COOLDOWN_FRAMES;
-            }
+              isPanning.current = true;
+              cameraStartPos.current = { ...world.current.cameraPos };
           }
-        } else if (e.button === 2) {
-          // Right Click Release -> End Parry
-          world.current.cursor.parryActive = false;
-          world.current.cursor.parryCooldown = GAME_BALANCE.PARRY_COOLDOWN_FRAMES; 
-        }
       };
 
-      window.addEventListener('mousedown', handleMouseDown);
-      window.addEventListener('mouseup', handleMouseUp);
-      return () => {
-          window.removeEventListener('mousedown', handleMouseDown);
-          window.removeEventListener('mouseup', handleMouseUp);
+      const handleMove = (clientX: number, clientY: number) => {
+          if (gameState !== GameState.PLAYING) return;
+
+          if (isPanning.current) {
+              const dx = clientX - dragStartPos.current.x;
+              const dy = clientY - dragStartPos.current.y;
+              const zoom = world.current.zoom;
+              
+              world.current.cameraPos = {
+                  x: cameraStartPos.current.x - dx / zoom,
+                  y: cameraStartPos.current.y - dy / zoom
+              };
+          } else if (isDraggingPlayer.current) {
+              playerDragCurrentPos.current = screenToWorld(clientX, clientY);
+          }
       };
-  }, [gameState, chatOpen, draggedItem, controlsVisible, isMobile]);
+
+      const handleUp = (clientX: number, clientY: number) => {
+          if (gameState !== GameState.PLAYING) return;
+
+          const dist = Math.hypot(clientX - dragStartPos.current.x, clientY - dragStartPos.current.y);
+
+          if (isDraggingPlayer.current) {
+              isDraggingPlayer.current = false;
+              
+              if (dist < 10) {
+                  // Tap on Player -> Open Menu
+                  setPlayerMenuPos({ x: clientX, y: clientY });
+                  setPlayerMenuOpen(true);
+              } else {
+                  // Dragged Player -> Move or Interact
+                  const targetWorldPos = screenToWorld(clientX, clientY);
+                  
+                  // Check for entities at target
+                  const targetEnt = world.current.entities.find(e => 
+                      getDistance(targetWorldPos, e.pos) < e.size + 10 && 
+                      e.type !== 'TORCH' // Ignore small items for movement target usually
+                  );
+
+                  if (targetEnt) {
+                      // Open Context Menu for Entity
+                      setContextMenu({ x: clientX, y: clientY, entityId: targetEnt.id });
+                  } else {
+                      // Move Player
+                      world.current.cursor.targetPos = { ...targetWorldPos };
+                      world.current.cursor.autoAction = 'NONE';
+                      world.current.cursor.autoTargetId = null;
+                  }
+              }
+              playerDragCurrentPos.current = null;
+          } else if (isPanning.current) {
+              isPanning.current = false;
+          }
+      };
+
+      const onMouseDown = (e: MouseEvent) => {
+          if (e.button === 0) handleDown(e.clientX, e.clientY);
+      };
+      const onMouseMove = (e: MouseEvent) => handleMove(e.clientX, e.clientY);
+      const onMouseUp = (e: MouseEvent) => handleUp(e.clientX, e.clientY);
+
+      const onTouchStart = (e: TouchEvent) => {
+          if (e.touches.length === 1) {
+              handleDown(e.touches[0].clientX, e.touches[0].clientY);
+          }
+      };
+      const onTouchMove = (e: TouchEvent) => {
+          if (e.touches.length === 1) {
+              handleMove(e.touches[0].clientX, e.touches[0].clientY);
+          }
+      };
+      const onTouchEnd = (e: TouchEvent) => {
+          // Use changedTouches for end position
+          if (e.changedTouches.length > 0) {
+              handleUp(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+          }
+      };
+
+      window.addEventListener('mousedown', onMouseDown);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+      window.addEventListener('touchstart', onTouchStart, { passive: false });
+      window.addEventListener('touchmove', onTouchMove, { passive: false });
+      window.addEventListener('touchend', onTouchEnd);
+
+      return () => {
+          window.removeEventListener('mousedown', onMouseDown);
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+          window.removeEventListener('touchstart', onTouchStart);
+          window.removeEventListener('touchmove', onTouchMove);
+          window.removeEventListener('touchend', onTouchEnd);
+      };
+  }, [gameState, playerMenuOpen, contextMenu, showInventory]);
 
   const addSystemMsg = (text: string, isError = false) => {
       setChatMessages(prev => [...prev, {
@@ -529,111 +570,157 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
 
+  // Game Loop
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
     let animationFrameId: number;
 
     const loop = () => {
-      // Only update logic if Playing, but ALWAYS render (even behind pause/options)
-      if (gameState === GameState.PLAYING) {
+      if (gameState === GameState.PLAYING && world.current) {
+        // Update Logic
+        // Smooth camera follow
+        if (world.current.cameraPos) {
+            world.current.cameraPos.x += (world.current.cursor.pos.x - world.current.cameraPos.x) * 0.1;
+            world.current.cameraPos.y += (world.current.cursor.pos.y - world.current.cameraPos.y) * 0.1;
+        }
+
         updateGame(
           world.current, 
-          canvas.width, 
-          canvas.height, 
+          window.innerWidth, 
+          window.innerHeight, 
           setStats, 
           setGameState, 
           stats
         );
+        
+        // Render
+        if (canvasRef.current) {
+          const ctx = canvasRef.current.getContext('2d');
+          if (ctx) {
+            renderGame({
+              ctx,
+              canvasWidth: window.innerWidth,
+              canvasHeight: window.innerHeight,
+              world: world.current,
+              settings
+            });
+
+            // Draw Off-screen Arrow
+            const w = world.current;
+            const zoom = w.zoom;
+            const cx = window.innerWidth / 2;
+            const cy = window.innerHeight / 2;
+            const playerScreenX = (w.cursor.pos.x - w.cameraPos.x) * zoom + cx;
+            const playerScreenY = (w.cursor.pos.y - w.cameraPos.y) * zoom + cy;
+
+            if (playerScreenX < 0 || playerScreenX > window.innerWidth || playerScreenY < 0 || playerScreenY > window.innerHeight) {
+                const angle = Math.atan2(playerScreenY - cy, playerScreenX - cx);
+                const dist = Math.min(cx, cy) - 50;
+                const arrowX = cx + Math.cos(angle) * dist;
+                const arrowY = cy + Math.sin(angle) * dist;
+
+                ctx.save();
+                ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform for screen space
+                ctx.translate(arrowX, arrowY);
+                ctx.rotate(angle);
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.moveTo(15, 0);
+                ctx.lineTo(-5, 10);
+                ctx.lineTo(-5, -10);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Draw Drag Line Overlay
+            if (isDraggingPlayer.current && playerDragCurrentPos.current && dragStartPos.current) {
+                // We need to draw this in screen space on top of the game
+                // But renderGame clears the canvas.
+                // So we should draw it here after renderGame.
+                
+                // Convert player pos to screen
+                const w = world.current;
+                const zoom = w.zoom;
+                const cx = window.innerWidth / 2;
+                const cy = window.innerHeight / 2;
+                const playerScreenX = (w.cursor.pos.x - w.cameraPos.x) * zoom + cx;
+                const playerScreenY = (w.cursor.pos.y - w.cameraPos.y) * zoom + cy;
+                
+                const targetScreenX = (playerDragCurrentPos.current.x - w.cameraPos.x) * zoom + cx;
+                const targetScreenY = (playerDragCurrentPos.current.y - w.cameraPos.y) * zoom + cy;
+
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = 4;
+                ctx.setLineDash([10, 10]);
+                ctx.beginPath();
+                ctx.moveTo(playerScreenX, playerScreenY);
+                ctx.lineTo(targetScreenX, targetScreenY);
+                ctx.stroke();
+                
+                // Draw target circle
+                ctx.beginPath();
+                ctx.arc(targetScreenX, targetScreenY, 10, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.fill();
+                ctx.restore();
+            }
+          }
+        }
       }
-
-      renderGame({
-        ctx,
-        canvasWidth: canvas.width,
-        canvasHeight: canvas.height,
-        world: world.current,
-        settings // Pass settings to renderer
-      });
-
+      setTick(t => t + 1);
       animationFrameId = requestAnimationFrame(loop);
     };
-
     loop();
+
     return () => cancelAnimationFrame(animationFrameId);
-  }, [gameState, stats, setGameState, setStats, settings]); 
+  }, [gameState, settings, multiplayerMode, stats]); // Added stats dependency
 
   return (
     <>
-      <canvas 
-        ref={canvasRef} 
-        className={`block absolute inset-0 z-0 ${cursorStyle}`}
+      <canvas
+        ref={canvasRef}
+        width={window.innerWidth}
+        height={window.innerHeight}
+        className={`block bg-black touch-none select-none ${cursorStyle}`}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       />
-      
-      {(gameState === GameState.PLAYING) && (
-        <Hud 
-            stats={stats} 
-            inventory={inventorySnapshot}
-            selectedIndex={hotbarIndex}
-            timeOfDay={world.current.timeOfDay}
-            dayCount={dayCount}
-            toggleMap={() => {}} // Controlled by Item now
-            isMapOpen={mapOpen}
-            onOpenOptions={onOpenOptions}
-            onDragStart={(index) => setDraggedItem({ index, x: 0, y: 0 })}
-            onSelectSlot={(index) => {
-                if (world.current) {
-                    world.current.cursor.hotbarSelectedIndex = index;
-                }
-            }}
-            onOpenInventory={() => {
-                if (world.current) {
-                    world.current.cursor.isInventoryOpen = true;
-                }
-            }}
-        />
-      )}
 
-      {/* Chat UI */}
+      {/* UI OVERLAYS */}
       {gameState === GameState.PLAYING && (
-          <Chat 
-              isOpen={chatOpen}
-              onClose={() => setChatOpen(false)}
-              messages={chatMessages}
-              onSendMessage={handleCommand}
-              initialChar={chatInitialChar}
+          <Hotbar 
+            inventory={world.current.cursor.inventory}
+            selectedIndex={world.current.cursor.hotbarSelectedIndex}
+            onOpenInventory={() => {
+                if (world.current) world.current.cursor.isInventoryOpen = true;
+                setShowInventory(true);
+            }}
           />
       )}
-
       {showInventory && (
           <Inventory 
-             cursor={world.current.cursor} 
-             updateInventory={handleInventoryUpdate}
-             close={() => world.current.cursor.isInventoryOpen = false} 
-             onOpenOptions={onOpenOptions}
+              cursor={world.current.cursor}
+              updateInventory={handleInventoryUpdate}
+              close={() => {
+                  if (world.current) world.current.cursor.isInventoryOpen = false;
+                  setShowInventory(false);
+              }}
+              onOpenOptions={onOpenOptions}
+              addSystemMsg={addSystemMsg}
           />
       )}
-      
-      {/* HOST ID OVERLAY (Updated to be centered and clickable) */}
-      {multiplayerMode === 'HOST' && mpControls.peerId && (
-          <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-50 pointer-events-auto flex flex-col items-center gap-1 group">
-              <div 
-                onClick={() => {
-                    navigator.clipboard.writeText(mpControls.peerId || '');
-                    alert("ID Copied!");
-                }}
-                className="bg-blue-600/80 text-black px-3 py-1 rounded cursor-pointer hover:bg-blue-500 border-2 border-white shadow-lg flex items-center gap-2"
-              >
-                  <span className="font-bold">HOST ID:</span> 
-                  <span className="font-mono bg-black/20 px-1 rounded">{mpControls.peerId}</span>
-                  <span className="text-xs opacity-75">(Click to Copy)</span>
-              </div>
-          </div>
+
+      {chatOpen && (
+          <Chat 
+              messages={chatMessages}
+              onSendMessage={(msg) => {
+                  handleCommand(msg);
+                  setChatOpen(false);
+              }}
+              onClose={() => setChatOpen(false)}
+              initialChar={chatInitialChar}
+          />
       )}
 
       {contextMenu && (
@@ -656,39 +743,22 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             }}
           />
       )}
-
-      {draggedItem && (
-          <div 
-            className="absolute pointer-events-none z-50 text-4xl opacity-70 filter drop-shadow-lg"
-            style={{ left: world.current.cursor.screenMousePos.x - 20, top: world.current.cursor.screenMousePos.y - 20 }}
-          >
-              {ITEM_ICONS[world.current.cursor.inventory[draggedItem.index].item]}
+      
+      {/* HOST ID OVERLAY */}
+      {multiplayerMode === 'HOST' && mpControls.peerId && (
+          <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-50 pointer-events-auto flex flex-col items-center gap-1 group">
+              <div 
+                onClick={() => {
+                    navigator.clipboard.writeText(mpControls.peerId || '');
+                    alert("ID Copied!");
+                }}
+                className="bg-blue-600/80 text-black px-3 py-1 rounded cursor-pointer hover:bg-blue-500 border-2 border-white shadow-lg flex items-center gap-2"
+              >
+                  <span className="font-bold">HOST ID:</span> 
+                  <span className="font-mono bg-black/20 px-1 rounded">{mpControls.peerId}</span>
+                  <span className="text-xs opacity-75">(Click to Copy)</span>
+              </div>
           </div>
-      )}
-
-      {/* Toggle Controls Button (Separate from main HUD) */}
-      {isMobile && gameState === GameState.PLAYING && (
-          <button 
-            onClick={() => setControlsVisible(!controlsVisible)}
-            className="absolute top-4 left-20 z-50 mc-btn w-10 h-10 flex items-center justify-center text-xl bg-[#c6c6c6] border-2 border-black shadow-md hover:bg-[#d6d6d6] pointer-events-auto transition-all"
-            title={controlsVisible ? "Hide Controls" : "Show Controls"}
-          >
-            {controlsVisible ? '🎮' : '🚫'}
-          </button>
-      )}
-
-      {/* Mobile Controls */}
-      {isMobile && gameState === GameState.PLAYING && !showInventory && !chatOpen && controlsVisible && (
-          <MobileControls 
-            world={world} 
-            onInventory={() => {
-                world.current.cursor.isInventoryOpen = !world.current.cursor.isInventoryOpen;
-            }}
-            onMap={() => {
-                world.current.cursor.isMapOpen = !world.current.cursor.isMapOpen;
-            }}
-            controlStyle={settings.mobileControlStyle}
-          />
       )}
     </>
   );
