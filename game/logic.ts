@@ -350,15 +350,15 @@ const dropItem = (world: WorldState, pos: Vector2, type: ItemType) => {
 };
 
 // Update World Mouse Pos based on current Screen Pos and Player Pos
-const updateCursorWorldPos = (c: CursorState, canvasWidth: number, canvasHeight: number, zoom: number) => {
+const updateCursorWorldPos = (c: CursorState, canvasWidth: number, canvasHeight: number, zoom: number, cameraPos: Vector2) => {
     if (!c.isInventoryOpen) {
         const centerX = canvasWidth / 2;
         const centerY = canvasHeight / 2;
         
         // Reverse the camera transform to get world coordinates
-        // WorldX = (ScreenX - CenterX) / Zoom + PlayerX
-        const worldX = (c.screenMousePos.x - centerX) / zoom + c.pos.x;
-        const worldY = (c.screenMousePos.y - centerY) / zoom + c.pos.y;
+        // WorldX = (ScreenX - CenterX) / Zoom + CameraX
+        const worldX = (c.screenMousePos.x - centerX) / zoom + cameraPos.x;
+        const worldY = (c.screenMousePos.y - centerY) / zoom + cameraPos.y;
         
         c.mousePos = { x: worldX, y: worldY };
 
@@ -404,7 +404,7 @@ export const updateGame = (
 
   // --- UPDATE MOUSE WORLD POS ---
   // Just once per frame to ensure interaction logic has correct coordinates
-  updateCursorWorldPos(c, canvasWidth, canvasHeight, world.zoom);
+  updateCursorWorldPos(c, canvasWidth, canvasHeight, world.zoom, world.cameraPos);
 
   // --- WATER LOGIC (SQUARE COLLISION) ---
   let inWater = false;

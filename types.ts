@@ -119,6 +119,10 @@ export interface PlayerStats {
   hunger: number;
   maxHunger: number;
   score: number;
+  tension: number;
+  maxTension: number;
+  precision: number;
+  maxPrecision: number;
 }
 
 export interface Projectile {

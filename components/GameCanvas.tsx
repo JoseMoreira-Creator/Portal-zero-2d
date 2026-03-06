@@ -9,6 +9,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { Inventory } from './UI/Inventory';
 import { Hotbar } from './UI/Hotbar';
 import { Chat } from './UI/Chat';
+import { Hud } from './UI/Hud';
 import { useMultiplayer } from '../hooks/useMultiplayer';
 import { getDistance, normalizeVector, getVector, scaleVector } from '../utils/math';
 import { ITEM_ICONS } from '../assets/art';
@@ -28,7 +29,7 @@ const ContextMenu: React.FC<{
                 className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
                 onClick={() => { onAction('CHOP'); onClose(); }}
             >
-                🪓 CHOP
+                ⚔️ INTERACT / ATTACK
             </button>
             <button 
                 className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
@@ -315,19 +316,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           if (gameState !== GameState.PLAYING) return;
           if (playerMenuOpen || contextMenu || showInventory) return;
 
-          const worldPos = screenToWorld(clientX, clientY);
-          const playerPos = world.current.cursor.pos;
-          const dist = getDistance(worldPos, playerPos);
-
           dragStartPos.current = { x: clientX, y: clientY };
-
-          if (dist < 40) { // Clicked on Player
-              isDraggingPlayer.current = true;
-              playerDragCurrentPos.current = { ...worldPos };
-          } else {
-              isPanning.current = true;
-              cameraStartPos.current = { ...world.current.cameraPos };
-          }
+          isPanning.current = true;
+          cameraStartPos.current = { ...world.current.cameraPos };
       };
 
       const handleMove = (clientX: number, clientY: number) => {
@@ -342,47 +333,41 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                   x: cameraStartPos.current.x - dx / zoom,
                   y: cameraStartPos.current.y - dy / zoom
               };
-          } else if (isDraggingPlayer.current) {
-              playerDragCurrentPos.current = screenToWorld(clientX, clientY);
           }
       };
 
       const handleUp = (clientX: number, clientY: number) => {
           if (gameState !== GameState.PLAYING) return;
-
+          
           const dist = Math.hypot(clientX - dragStartPos.current.x, clientY - dragStartPos.current.y);
 
-          if (isDraggingPlayer.current) {
-              isDraggingPlayer.current = false;
+          if (isPanning.current && dist < 5) {
+              // Click Logic (if not dragged much)
+              const worldPos = screenToWorld(clientX, clientY);
               
-              if (dist < 10) {
-                  // Tap on Player -> Open Menu
-                  setPlayerMenuPos({ x: clientX, y: clientY });
-                  setPlayerMenuOpen(true);
-              } else {
-                  // Dragged Player -> Move or Interact
-                  const targetWorldPos = screenToWorld(clientX, clientY);
-                  
-                  // Check for entities at target
-                  const targetEnt = world.current.entities.find(e => 
-                      getDistance(targetWorldPos, e.pos) < e.size + 10 && 
-                      e.type !== 'TORCH' // Ignore small items for movement target usually
-                  );
-
-                  if (targetEnt) {
-                      // Open Context Menu for Entity
-                      setContextMenu({ x: clientX, y: clientY, entityId: targetEnt.id });
-                  } else {
-                      // Move Player
-                      world.current.cursor.targetPos = { ...targetWorldPos };
-                      world.current.cursor.autoAction = 'NONE';
-                      world.current.cursor.autoTargetId = null;
+              // Check for entity click
+              let clickedEntity = null;
+              // Iterate backwards to prioritize top entities
+              for (let i = world.current.entities.length - 1; i >= 0; i--) {
+                  const ent = world.current.entities[i];
+                  // Simple circle collision check for click
+                  if (getDistance(worldPos, ent.pos) < ent.size + 10) {
+                      clickedEntity = ent;
+                      break;
                   }
               }
-              playerDragCurrentPos.current = null;
-          } else if (isPanning.current) {
-              isPanning.current = false;
+
+              if (clickedEntity) {
+                  setContextMenu({ x: clientX, y: clientY, entityId: clickedEntity.id });
+              } else {
+                  // Move to position
+                  world.current.cursor.targetPos = { ...worldPos };
+                  world.current.cursor.autoAction = 'NONE';
+                  world.current.cursor.autoTargetId = null;
+              }
           }
+
+          isPanning.current = false;
       };
 
       const onMouseDown = (e: MouseEvent) => {
@@ -577,11 +562,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const loop = () => {
       if (gameState === GameState.PLAYING && world.current) {
         // Update Logic
-        // Smooth camera follow
-        if (world.current.cameraPos) {
-            world.current.cameraPos.x += (world.current.cursor.pos.x - world.current.cameraPos.x) * 0.1;
-            world.current.cameraPos.y += (world.current.cursor.pos.y - world.current.cameraPos.y) * 0.1;
-        }
+        // Smooth camera follow removed
 
         updateGame(
           world.current, 
@@ -688,6 +669,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       />
 
       {/* UI OVERLAYS */}
+      <Hud stats={stats} />
       {gameState === GameState.PLAYING && (
           <Hotbar 
             inventory={world.current.cursor.inventory}

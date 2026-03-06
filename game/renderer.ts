@@ -63,10 +63,10 @@ export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings }: 
   const currentWorldW = dimension === 'SURFACE' ? WORLD_WIDTH : MINING_AREA_WIDTH;
   const currentWorldH = dimension === 'SURFACE' ? WORLD_HEIGHT : MINING_AREA_HEIGHT;
 
-  const startX = Math.floor((cursor.pos.x - visibleWidth/2) / BLOCK_SIZE) - 2;
-  const endX = Math.ceil((cursor.pos.x + visibleWidth/2) / BLOCK_SIZE) + 2;
-  const startY = Math.floor((cursor.pos.y - visibleHeight/2) / BLOCK_SIZE) - 2;
-  const endY = Math.ceil((cursor.pos.y + visibleHeight/2) / BLOCK_SIZE) + 2;
+  const startX = Math.floor((cameraPos.x - visibleWidth/2) / BLOCK_SIZE) - 2;
+  const endX = Math.ceil((cameraPos.x + visibleWidth/2) / BLOCK_SIZE) + 2;
+  const startY = Math.floor((cameraPos.y - visibleHeight/2) / BLOCK_SIZE) - 2;
+  const endY = Math.ceil((cameraPos.y + visibleHeight/2) / BLOCK_SIZE) + 2;
 
   // Disable image smoothing for pixel art look
   ctx.imageSmoothingEnabled = false; 
@@ -239,12 +239,12 @@ export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings }: 
           mCtx.translate(centerX, centerY);
           mCtx.scale(zoom, zoom);
           mCtx.translate(-centerX, -centerY);
-          mCtx.translate(camX + shakeX, camY + shakeY);
+          mCtx.translate(camX, camY);
 
           mCtx.globalAlpha = alpha;
           mCtx.fillStyle = dimension === 'SURFACE' ? '#0a0a1a' : '#000000';
-          const viewX = cursor.pos.x - visibleWidth/2 - 100;
-          const viewY = cursor.pos.y - visibleHeight/2 - 100;
+          const viewX = cameraPos.x - visibleWidth/2 - 100;
+          const viewY = cameraPos.y - visibleHeight/2 - 100;
           mCtx.fillRect(viewX, viewY, visibleWidth + 200, visibleHeight + 200);
           
           mCtx.globalAlpha = 1.0;

@@ -64,7 +64,11 @@ const App: React.FC = () => {
     maxHp: GAME_BALANCE.PLAYER_BASE_HP,
     hunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
     maxHunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
-    score: 0
+    score: 0,
+    tension: GAME_BALANCE.PLAYER_BASE_TENSION,
+    maxTension: GAME_BALANCE.PLAYER_BASE_TENSION,
+    precision: GAME_BALANCE.PLAYER_BASE_PRECISION,
+    maxPrecision: GAME_BALANCE.PLAYER_BASE_PRECISION
   });
   const [activeSlot, setActiveSlot] = useState<ItemType>(ItemType.EMPTY);
   const [showChangelog, setShowChangelog] = useState(false);
@@ -103,7 +107,11 @@ const App: React.FC = () => {
               maxHp: GAME_BALANCE.PLAYER_BASE_HP,
               hunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
               maxHunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
-              score: 0
+              score: 0,
+              tension: GAME_BALANCE.PLAYER_BASE_TENSION,
+              maxTension: GAME_BALANCE.PLAYER_BASE_TENSION,
+              precision: GAME_BALANCE.PLAYER_BASE_PRECISION,
+              maxPrecision: GAME_BALANCE.PLAYER_BASE_PRECISION
           });
           
           setIsLoading(false);
@@ -134,7 +142,11 @@ const App: React.FC = () => {
                     maxHp: GAME_BALANCE.PLAYER_BASE_HP,
                     hunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
                     maxHunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
-                    score: 0
+                    score: 0,
+                    tension: GAME_BALANCE.PLAYER_BASE_TENSION,
+                    maxTension: GAME_BALANCE.PLAYER_BASE_TENSION,
+                    precision: GAME_BALANCE.PLAYER_BASE_PRECISION,
+                    maxPrecision: GAME_BALANCE.PLAYER_BASE_PRECISION
                   });
                   
                   // If launching from multiplayer menu

@@ -146,6 +146,30 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
       }
   };
 
+  const getArmorType = (item: ItemType): keyof Equipment | null => {
+      if (item.includes('HELMET')) return 'head';
+      if (item.includes('CHEST')) return 'chest';
+      if (item.includes('LEGS')) return 'legs';
+      if (item.includes('BOOTS')) return 'feet';
+      return null;
+  };
+
+  const handleEquipmentClick = (slotKey: keyof Equipment) => {
+      const slot = cursor.equipment[slotKey];
+      if (slot.item === ItemType.EMPTY) return;
+      
+      // Unequip to inventory
+      const { updatedList: newInv, remaining } = simulateAdd(cursor.inventory, slot.item, slot.count);
+      
+      if (remaining === 0) {
+          cursor.equipment[slotKey] = { item: ItemType.EMPTY, count: 0 };
+          updateInventory(newInv);
+          setForceUpdate(p => p + 1);
+      } else {
+          addSystemMsg("Inventory full!");
+      }
+  };
+
   const consumeCraftingIngredients = () => {
       const newGrid = craftGrid.map(slot => {
           if (slot.item === ItemType.EMPTY) return slot;
@@ -479,6 +503,13 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
     <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50" onContextMenu={e => e.preventDefault()}>
         {/* Main Panel */}
         <div className="mc-panel p-4 bg-[#c6c6c6] flex flex-col gap-4 relative">
+            {/* Close Button */}
+            <button 
+                onClick={close}
+                className="absolute -top-2 -right-2 w-8 h-8 bg-red-600 border-2 border-black text-white font-bold flex items-center justify-center hover:bg-red-500 shadow-lg z-[60]"
+            >
+                X
+            </button>
             
             {/* Context Menu */}
             {contextMenu && (
