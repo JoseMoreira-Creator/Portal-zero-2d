@@ -143,7 +143,7 @@ export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings }: 
       ctx.translate(item.pos.x, item.pos.y + bob);
       
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.beginPath(); ctx.ellipse(0, 8, 8, 4, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillRect(-8, 4, 16, 8);
 
       if (!drawSprite(ctx, item.type, 0, 0, 20, 20)) {
           renderIcon(ctx, item.type, 20);
@@ -257,7 +257,7 @@ export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings }: 
           gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
           gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
           mCtx.fillStyle = gradient;
-          mCtx.beginPath(); mCtx.arc(pX, pY, 200, 0, Math.PI*2); mCtx.fill();
+          mCtx.fillRect(pX - 200, pY - 200, 400, 400);
 
           // Remote Player Lights
           if (remotePlayers) {
@@ -266,7 +266,7 @@ export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings }: 
                  g.addColorStop(0, 'rgba(255, 255, 255, 1)');
                  g.addColorStop(1, 'rgba(255, 255, 255, 0)');
                  mCtx.fillStyle = g;
-                 mCtx.beginPath(); mCtx.arc(rp.pos.x, rp.pos.y - 10, 200, 0, Math.PI*2); mCtx.fill();
+                 mCtx.fillRect(rp.pos.x - 200, rp.pos.y - 210, 400, 400);
              });
           }
 
@@ -282,7 +282,8 @@ export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings }: 
                   g.addColorStop(0, 'rgba(255, 200, 150, 0.9)');
                   g.addColorStop(1, 'rgba(255, 200, 150, 0)');
                   mCtx.fillStyle = g;
-                  mCtx.beginPath(); mCtx.arc(ent.pos.x, ent.pos.y, radius + flicker, 0, Math.PI*2); mCtx.fill();
+                  const r = radius + flicker;
+                  mCtx.fillRect(ent.pos.x - r, ent.pos.y - r, r * 2, r * 2);
               }
           });
           
@@ -302,9 +303,12 @@ const drawEntityBase = (ctx: CanvasRenderingContext2D, ent: Entity, frameCount: 
     ctx.save();
     ctx.translate(ent.pos.x, ent.pos.y);
     if (ent.faceDirection !== 0) ctx.scale(ent.faceDirection, 1);
+    
+    // Scale down by 0.5 to match 16x16 grid while keeping hardcoded drawing values
+    ctx.scale(0.5, 0.5);
 
     const bob = (animationsEnabled && ent.state !== 'IDLE') ? Math.sin(frameCount * 0.2) * 2 : 0;
-    const s = ent.size;
+    const s = ent.size * 2; // Restore original size for drawing logic
 
     // --- TREES ---
     if (ent.type === 'TREE' || ent.type === 'BIRCH_TREE') {
@@ -324,26 +328,21 @@ const drawEntityBase = (ctx: CanvasRenderingContext2D, ent: Entity, frameCount: 
             const sway = animationsEnabled ? Math.sin(frameCount * 0.02 + ent.pos.x) * 3 : 0;
             ctx.translate(sway, -trunkH);
             ctx.fillStyle = leafColor;
-            ctx.beginPath(); ctx.arc(-20, 0, 20, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(20, 0, 20, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(0, 5, 22, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(0, -35, 20, 0, Math.PI*2); ctx.fill();
+            ctx.fillRect(-30, -15, 60, 30);
+            ctx.fillRect(-20, -45, 40, 30);
             ctx.fillStyle = leafDetail;
-            ctx.beginPath(); ctx.arc(-10, -30, 8, 0, Math.PI*2); ctx.fill();
+            ctx.fillRect(-15, -35, 10, 10);
         }
     } 
     // --- ROCKS & ORES ---
     else if (ent.type === 'ROCK' || ent.type === 'COAL_ORE' || ent.type === 'IRON_ORE') {
         if (!drawSprite(ctx, ent.type, 0, 0, 32, 32)) {
             ctx.fillStyle = ent.color;
-            ctx.beginPath();
-            ctx.moveTo(-10, -12); ctx.lineTo(8, -14); ctx.lineTo(14, -4);
-            ctx.lineTo(12, 10); ctx.lineTo(-5, 12); ctx.lineTo(-14, 5);
-            ctx.closePath(); ctx.fill();
+            ctx.fillRect(-16, -16, 32, 32);
             
             // Shading
             ctx.fillStyle = 'rgba(0,0,0,0.2)';
-            ctx.beginPath(); ctx.moveTo(-14, 5); ctx.lineTo(-5, 12); ctx.lineTo(12, 10); ctx.lineTo(8, 6); ctx.lineTo(-10, 0); ctx.fill();
+            ctx.fillRect(-16, 0, 32, 16);
             
             if (ent.type === 'COAL_ORE' || ent.type === 'IRON_ORE') {
                 ctx.fillStyle = ent.type === 'COAL_ORE' ? '#212121' : '#D7CCC8';
@@ -359,7 +358,7 @@ const drawEntityBase = (ctx: CanvasRenderingContext2D, ent: Entity, frameCount: 
         ctx.fillRect(-12, -12, 24, 4); ctx.fillRect(-12, 8, 24, 4);
         ctx.fillStyle = '#263238'; ctx.fillRect(-6, 0, 12, 6);
         if (Math.random() > 0.3) {
-            ctx.fillStyle = '#FF5722'; ctx.beginPath(); ctx.arc(0, 3, 3, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#FF5722'; ctx.fillRect(-3, 0, 6, 6);
         }
     }
     // --- CRAFTING TABLE ---
@@ -418,14 +417,14 @@ const drawEntityBase = (ctx: CanvasRenderingContext2D, ent: Entity, frameCount: 
              ctx.fillRect(-12, -16, 24, 32);
              ctx.fillStyle = '#A1887F';
              ctx.fillRect(-8, -12, 8, 10); ctx.fillRect(-8, 2, 8, 10);
-             ctx.fillStyle = '#FFD700'; ctx.beginPath(); ctx.arc(8, 0, 2, 0, Math.PI*2); ctx.fill();
+             ctx.fillStyle = '#FFD700'; ctx.fillRect(6, -2, 4, 4);
         }
     }
     else if (ent.type === ItemType.TORCH) {
         ctx.fillStyle = '#5D4037'; ctx.fillRect(-2, -5, 4, 10);
         const f = Math.random() * 3;
-        ctx.fillStyle = '#FFC107'; ctx.beginPath(); ctx.arc(0, -8, 4 + f/2, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#FF5722'; ctx.beginPath(); ctx.arc(0, -8, 2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#FFC107'; ctx.fillRect(-4 - f/2, -12 - f/2, 8 + f, 8 + f);
+        ctx.fillStyle = '#FF5722'; ctx.fillRect(-2, -10, 4, 4);
     }
     // --- PLANKS BLOCK ---
     else if (ent.type === ItemType.PLANKS) {
@@ -473,7 +472,7 @@ const drawEntityBase = (ctx: CanvasRenderingContext2D, ent: Entity, frameCount: 
         // --- MOBS ---
         ctx.translate(0, bob);
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.beginPath(); ctx.ellipse(0, s/2, s/2, s/4, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillRect(-s/2, s/2 - s/8, s, s/4);
 
         if (drawSprite(ctx, ent.type, 0, -s/2, s, s)) {
             ctx.restore(); return;
@@ -528,14 +527,14 @@ const drawEntityBase = (ctx: CanvasRenderingContext2D, ent: Entity, frameCount: 
         // --- HOSTILE MOBS ---
         else if (ent.type === MobType.SLIME || ent.type === MobType.GIANT_SLIME) {
             ctx.fillStyle = ent.color; 
-            ctx.beginPath(); ctx.roundRect(-hs, -hs, s, s*0.8, 5); ctx.fill();
+            ctx.fillRect(-hs, -hs, s, s*0.8);
             // Core
             ctx.fillStyle = 'rgba(255,255,255,0.4)';
             ctx.fillRect(-hs/2, -hs/2, hs, hs/2);
             // Eyes
             ctx.fillStyle = '#000';
-            ctx.beginPath(); ctx.arc(-5, -5, 2, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(5, -5, 2, 0, Math.PI*2); ctx.fill();
+            ctx.fillRect(-6, -6, 4, 4);
+            ctx.fillRect(4, -6, 4, 4);
         }
         else if (ent.type === MobType.ZOMBIE) {
             ctx.fillStyle = COLORS.ZOMBIE; ctx.fillRect(-6, -26, 12, 12); // Head
@@ -552,9 +551,8 @@ const drawEntityBase = (ctx: CanvasRenderingContext2D, ent: Entity, frameCount: 
             ctx.fillRect(2, -14, 2, 12); // Left Arm (Holding Bow)
             ctx.fillRect(-5, -2, 2, 10); ctx.fillRect(3, -2, 2, 10); // Legs
             // Bow
-            ctx.strokeStyle = '#5D4037'; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.arc(8, -8, 8, -Math.PI/2, Math.PI/2); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(8, -16); ctx.lineTo(8, 0); ctx.stroke();
+            ctx.strokeStyle = '#5D4037'; ctx.lineWidth = 2;
+            ctx.strokeRect(8, -8, 8, 16);
         }
         else if (ent.type === MobType.CREEPER) {
             ctx.fillStyle = COLORS.CREEPER; 
@@ -593,6 +591,9 @@ const renderAdventurer = (ctx: CanvasRenderingContext2D, cursor: CursorState, fr
     ctx.translate(cursor.pos.x, cursor.pos.y);
     ctx.scale(cursor.faceDirection, 1);
     
+    // Scale down by 0.5 to match 16x16 grid
+    ctx.scale(0.5, 0.5);
+    
     // Render Coordinates
     if (settings.showCoordinates) {
         ctx.save();
@@ -607,7 +608,7 @@ const renderAdventurer = (ctx: CanvasRenderingContext2D, cursor: CursorState, fr
     }
     
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath(); ctx.ellipse(0, 0, 8, 3, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillRect(-8, -3, 16, 6);
 
     if (drawSprite(ctx, 'PLAYER_IDLE', 0, -12, 32, 64)) {
     } else {
@@ -698,9 +699,8 @@ const renderIcon = (ctx: CanvasRenderingContext2D, type: ItemType, size: number)
     else if (type.includes('PICKAXE')) {
         ctx.save(); ctx.rotate(-Math.PI/4);
         rect(-1, -s+4, 2, size-4, '#5D4037');
-        ctx.beginPath(); ctx.arc(0, -s+4, 8, Math.PI, 0); ctx.lineWidth = 3; 
-        ctx.strokeStyle = type.includes('WOOD') ? '#8D6E63' : (type.includes('STONE') ? '#9E9E9E' : '#CFD8DC');
-        ctx.stroke();
+        ctx.fillStyle = type.includes('WOOD') ? '#8D6E63' : (type.includes('STONE') ? '#9E9E9E' : '#CFD8DC');
+        ctx.fillRect(-8, -s+2, 16, 4);
         ctx.restore();
     }
     else if (type.includes('AXE')) {
@@ -713,7 +713,7 @@ const renderIcon = (ctx: CanvasRenderingContext2D, type: ItemType, size: number)
     }
     else if (type === ItemType.BOW) {
         ctx.strokeStyle = '#8D6E63'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(0, 0, s, -Math.PI/2, Math.PI/2); ctx.stroke();
+        ctx.strokeRect(0, -s, s, size);
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(0, s); ctx.stroke();
     }
@@ -773,9 +773,7 @@ const renderIcon = (ctx: CanvasRenderingContext2D, type: ItemType, size: number)
     else if (type === ItemType.RAW_BEEF || type === ItemType.STEAK) {
         const cooked = type === ItemType.STEAK;
         ctx.fillStyle = cooked ? '#5D4037' : '#E53935';
-        ctx.beginPath();
-        ctx.ellipse(0, 0, s-2, s-4, Math.PI/4, 0, Math.PI*2);
-        ctx.fill();
+        ctx.fillRect(-s+2, -s+4, size-4, size-8);
         ctx.fillStyle = cooked ? '#3E2723' : '#FFCDD2'; // Marbling
         ctx.fillRect(-2, -2, 4, 2);
     }
@@ -807,9 +805,9 @@ const renderIcon = (ctx: CanvasRenderingContext2D, type: ItemType, size: number)
         ctx.save(); ctx.rotate(-Math.PI/4);
         rect(-2, -6, 4, 10, '#5D4037'); // Stick
         ctx.fillStyle = '#FFC107'; // Flame core
-        ctx.beginPath(); ctx.arc(0, -8, 5, 0, Math.PI*2); ctx.fill();
+        ctx.fillRect(-3, -11, 6, 6);
         ctx.fillStyle = '#FF5722'; // Flame outer
-        ctx.beginPath(); ctx.arc(0, -8, 3, 0, Math.PI*2); ctx.fill();
+        ctx.fillRect(-1.5, -9.5, 3, 3);
         ctx.restore();
     }
     else if (type === ItemType.DOOR) {
@@ -818,7 +816,7 @@ const renderIcon = (ctx: CanvasRenderingContext2D, type: ItemType, size: number)
         ctx.fillRect(-s+6, -s+2, size-12, size/2 - 4);
         ctx.fillRect(-s+6, 2, size-12, size/2 - 4);
         ctx.fillStyle = '#FFD700';
-        ctx.beginPath(); ctx.arc(s-6, 0, 1.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillRect(s-6, -1, 3, 3);
     }
     else if (type === ItemType.LADDER) {
         ctx.fillStyle = '#8D6E63';
@@ -830,9 +828,9 @@ const renderIcon = (ctx: CanvasRenderingContext2D, type: ItemType, size: number)
     }
      else if (type === ItemType.POTION) {
         ctx.fillStyle = '#F44336'; // Red liquid
-        ctx.beginPath(); ctx.arc(0, 2, 6, 0, Math.PI*2); ctx.fill();
+        ctx.fillRect(-6, -4, 12, 12);
         ctx.fillStyle = '#fff'; // Glass shine
-        ctx.beginPath(); ctx.arc(-2, 0, 2, 0, Math.PI*2); ctx.fill();
+        ctx.fillRect(-4, -2, 4, 4);
         ctx.fillStyle = '#aaa'; // Neck
         ctx.fillRect(-2, -8, 4, 4);
         ctx.fillStyle = '#8D6E63'; // Cork
@@ -846,7 +844,7 @@ const renderIcon = (ctx: CanvasRenderingContext2D, type: ItemType, size: number)
         ctx.fill();
         ctx.fillRect(-s, 0, size, 4); // Band
         ctx.fillStyle = '#4CAF50'; // Slime Gem
-        ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI*2); ctx.fill();
+        ctx.fillRect(-2, -2, 4, 4);
     }
     else {
         // Fallback Blocks

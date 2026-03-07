@@ -22,27 +22,34 @@ const ContextMenu: React.FC<{
 }> = ({ x, y, onAction, onClose }) => {
     return (
         <div 
-            className="absolute z-50 bg-[#c6c6c6] border-2 border-black p-1 shadow-xl flex flex-col gap-1 pointer-events-auto"
-            style={{ left: x, top: y }}
+            className="fixed inset-0 z-[100] pointer-events-auto"
+            onClick={onClose}
+            onContextMenu={(e) => { e.preventDefault(); onClose(); }}
         >
-            <button 
-                className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
-                onClick={() => { onAction('CHOP'); onClose(); }}
+            <div 
+                className="absolute bg-[#c6c6c6] border-2 border-black p-1 shadow-xl flex flex-col gap-1"
+                style={{ left: x, top: y }}
+                onClick={(e) => e.stopPropagation()}
             >
-                ⚔️ INTERACT / ATTACK
-            </button>
-            <button 
-                className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
-                onClick={() => { onAction('INSPECT'); onClose(); }}
-            >
-                🔍 INSPECT
-            </button>
-            <button 
-                className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
-                onClick={onClose}
-            >
-                ❌ CLOSE
-            </button>
+                <button 
+                    className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
+                    onClick={() => { onAction('CHOP'); onClose(); }}
+                >
+                    ⚔️ INTERACT / ATTACK
+                </button>
+                <button 
+                    className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
+                    onClick={() => { onAction('INSPECT'); onClose(); }}
+                >
+                    🔍 INSPECT
+                </button>
+                <button 
+                    className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
+                    onClick={onClose}
+                >
+                    ❌ CLOSE
+                </button>
+            </div>
         </div>
     );
 };
@@ -734,10 +741,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                     navigator.clipboard.writeText(mpControls.peerId || '');
                     alert("ID Copied!");
                 }}
-                className="bg-blue-600/80 text-black px-3 py-1 rounded cursor-pointer hover:bg-blue-500 border-2 border-white shadow-lg flex items-center gap-2"
+                className="bg-blue-600/80 text-black px-3 py-1 cursor-pointer hover:bg-blue-500 border-2 border-white shadow-lg flex items-center gap-2"
               >
                   <span className="font-bold">HOST ID:</span> 
-                  <span className="font-mono bg-black/20 px-1 rounded">{mpControls.peerId}</span>
+                  <span className="font-mono bg-black/20 px-1">{mpControls.peerId}</span>
                   <span className="text-xs opacity-75">(Click to Copy)</span>
               </div>
           </div>

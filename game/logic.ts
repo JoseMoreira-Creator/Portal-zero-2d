@@ -80,7 +80,7 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
             maxHp: GAME_BALANCE.TREE_HP,
             state: 'IDLE',
             attackTimer: 0,
-            size: 32,
+            size: 16,
             color,
             faceDirection: 1
         });
@@ -133,7 +133,7 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
               maxHp: GAME_BALANCE.ROCK_HP,
               state: 'IDLE',
               attackTimer: 0,
-              size: 32,
+              size: 16,
               color: rockColor,
               faceDirection: 1
           });
@@ -247,7 +247,7 @@ const createUndergroundWorld = (): { entities: Entity[], spawn: Vector2 } => {
                 maxHp: GAME_BALANCE.ROCK_HP,
                 state: 'IDLE',
                 attackTimer: 0,
-                size: 32,
+                size: 16,
                 color,
                 faceDirection: 1
             });
@@ -267,7 +267,7 @@ const createUndergroundWorld = (): { entities: Entity[], spawn: Vector2 } => {
         maxHp: 100,
         state: 'IDLE',
         attackTimer: 0,
-        size: 32,
+        size: 16,
         color: '#8d6e63',
         faceDirection: 1
     });
@@ -334,7 +334,7 @@ const spawnMob = (world: WorldState, playerPos: Vector2) => {
         maxHp: hp,
         state: 'IDLE',
         attackTimer: Math.random() * 100,
-        size: type === MobType.CHICKEN ? 15 : (type === MobType.SLIME ? 20 : (type === MobType.SPIDER ? 32 : 25)),
+        size: type === MobType.CHICKEN ? 8 : (type === MobType.SLIME ? 10 : (type === MobType.SPIDER ? 16 : 12)),
         color,
         faceDirection: 1
     });
@@ -643,7 +643,7 @@ export const updateGame = (
                        maxHp: 1,
                        state: 'IDLE',
                        attackTimer: 0,
-                       size: 10,
+                       size: 5,
                        color: '#ffeb3b',
                        faceDirection: 1,
                        maxLife: GAME_BALANCE.TORCH_LIFETIME 

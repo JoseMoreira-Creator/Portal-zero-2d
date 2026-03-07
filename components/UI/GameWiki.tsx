@@ -21,8 +21,8 @@ export const GameWiki: React.FC<GameWikiProps> = ({ onClose }) => {
   };
 
   // Helper to render a generic entity box
-  const EntityPreview = ({ color, width = 'w-8', height = 'h-8', border = true, radius = 'rounded-none' }: any) => (
-      <div className={`${width} ${height} ${radius} shrink-0 shadow-md`} style={{ backgroundColor: color, border: border ? '2px solid rgba(0,0,0,0.2)' : 'none' }}></div>
+  const EntityPreview = ({ color, width = 'w-8', height = 'h-8', border = true }: any) => (
+      <div className={`${width} ${height} shrink-0 shadow-md`} style={{ backgroundColor: color, border: border ? '2px solid rgba(0,0,0,0.2)' : 'none' }}></div>
   );
 
   const Section = ({ title, id, children }: { title: string, id: string, children: React.ReactNode }) => {
@@ -192,13 +192,13 @@ export const GameWiki: React.FC<GameWikiProps> = ({ onClose }) => {
 
             {/* 3. NATURE */}
             <Section title="Nature" id="nature">
-                <ItemCard name="Oak Tree" sub={<div className="flex flex-col items-center"><div className="w-6 h-6 rounded-full bg-[#1b5e20] -mb-2 z-10"></div><div className="w-2 h-4 bg-[#5D4037]"></div></div>} desc="Drops Oak Wood." />
-                <ItemCard name="Birch Tree" sub={<div className="flex flex-col items-center"><div className="w-6 h-6 rounded-full bg-[#558b2f] -mb-2 z-10"></div><div className="w-2 h-4 bg-[#eceff1]"></div></div>} desc="Drops Birch Wood." />
+                <ItemCard name="Oak Tree" sub={<div className="flex flex-col items-center"><div className="w-6 h-6 bg-[#1b5e20] -mb-2 z-10"></div><div className="w-2 h-4 bg-[#5D4037]"></div></div>} desc="Drops Oak Wood." />
+                <ItemCard name="Birch Tree" sub={<div className="flex flex-col items-center"><div className="w-6 h-6 bg-[#558b2f] -mb-2 z-10"></div><div className="w-2 h-4 bg-[#eceff1]"></div></div>} desc="Drops Birch Wood." />
             </Section>
             
             <Section title="Blocks" id="blocks">
                 <ItemCard name="Grass Block" sub={<EntityPreview color={COLORS.GRASS_BASE_1} />} desc="The ground you walk on." />
-                <ItemCard name="Rock" sub={<EntityPreview color={COLORS.STONE} radius="rounded-lg" />} desc="Drops Stone." />
+                <ItemCard name="Rock" sub={<EntityPreview color={COLORS.STONE} />} desc="Drops Stone." />
                 <ItemCard name="Coal Ore" sub={<div className="w-8 h-8 bg-[#78909c] relative"><div className="absolute inset-2 bg-[#212121]"></div></div>} desc="Drops Coal & Stone." />
                 <ItemCard name="Iron Ore" sub={<div className="w-8 h-8 bg-[#d7ccc8] relative"><div className="absolute inset-2 bg-[#8d6e63]"></div></div>} desc="Drops Iron & Stone. Found Underground." />
                 <ItemCard name="Water" sub={<EntityPreview color={COLORS.WATER} border={false} />} desc="Slows movement. Requires breath." />

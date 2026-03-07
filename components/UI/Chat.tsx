@@ -77,7 +77,7 @@ export const Chat: React.FC<ChatProps> = ({ isOpen, messages, onSendMessage, onC
             {activeMessage && (
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[60px] z-[45] pointer-events-none flex flex-col items-center">
                     <div className={`
-                        max-w-[250px] px-3 py-2 rounded-lg text-center font-bold font-mono text-sm leading-tight
+                        max-w-[250px] px-3 py-2 text-center font-bold font-mono text-sm leading-tight
                         relative border-2 shadow-lg
                         ${getBubbleStyles(activeMessage.sender)}
                         transition-opacity duration-500
@@ -111,7 +111,7 @@ export const Chat: React.FC<ChatProps> = ({ isOpen, messages, onSendMessage, onC
             {/* INPUT BAR - Centered Bottom */}
             {isOpen && (
                 <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 w-[90%] max-w-[400px] z-50">
-                    <div className="bg-[#1a1a1a]/90 p-2 border-2 border-white rounded-md flex items-center shadow-2xl">
+                    <div className="bg-[#1a1a1a]/90 p-2 border-2 border-white flex items-center shadow-2xl">
                         <span className="text-yellow-400 mr-2 font-bold font-mono text-xl">&gt;</span>
                         <input
                             ref={inputRef}

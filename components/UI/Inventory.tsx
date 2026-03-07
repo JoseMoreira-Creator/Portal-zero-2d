@@ -500,9 +500,16 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
   };
 
   return (
-    <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50" onContextMenu={e => e.preventDefault()}>
+    <div 
+        className="absolute inset-0 bg-black/60 flex items-center justify-center z-50" 
+        onContextMenu={e => e.preventDefault()}
+        onClick={close}
+    >
         {/* Main Panel */}
-        <div className="mc-panel p-4 bg-[#c6c6c6] flex flex-col gap-4 relative">
+        <div 
+            className="mc-panel p-4 bg-[#c6c6c6] flex flex-col gap-4 relative"
+            onClick={e => e.stopPropagation()}
+        >
             {/* Close Button */}
             <button 
                 onClick={close}

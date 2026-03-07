@@ -8,32 +8,7 @@ import { ItemType, MobType } from '../types';
 // =====================================================================================
 
 export const SPRITE_URLS: Record<string, string> = {
-    // --- PLAYER ---
-    'PLAYER_IDLE': '/sprites/player.svg', 
-
-    // --- NATUREZA ---
-    'TREE': '/sprites/tree.svg',
-    'BIRCH_TREE': '/sprites/tree.svg', // Pode criar um birch.svg separado se quiser
-    'ROCK': '/sprites/rock.svg',
-    
-    // Blocos dropados (Se deixar vazio, usa o desenho via código)
-    [ItemType.STONE]: '',
-    [ItemType.WOOD]: '',
-    [ItemType.PLANKS]: '',
-    [ItemType.CRAFTING_TABLE]: '',
-    [ItemType.FURNACE]: '',
-
-    // --- MOBS ---
-    [MobType.ZOMBIE]: '/sprites/zombie.svg', 
-    [MobType.SKELETON]: '', // Usa renderização procedural se vazio
-    [MobType.CREEPER]: '',
-    [MobType.COW]: '',
-    
-    // --- ITENS ---
-    // Você pode adicionar imagens para as ferramentas aqui
-    [ItemType.SWORD_WOOD]: '',
-    [ItemType.SWORD_STONE]: '',
-    [ItemType.POTION]: '',
+    // All sprites are now procedurally generated pixel art
 };
 
 // Armazena as imagens carregadas na memória

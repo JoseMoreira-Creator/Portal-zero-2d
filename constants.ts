@@ -2,7 +2,7 @@
 
 export const SCREEN_WIDTH = window.innerWidth;
 export const SCREEN_HEIGHT = window.innerHeight;
-export const BLOCK_SIZE = 32;
+export const BLOCK_SIZE = 16;
 export const MAX_STACK = 99;
 
 export const WORLD_WIDTH = 3000;

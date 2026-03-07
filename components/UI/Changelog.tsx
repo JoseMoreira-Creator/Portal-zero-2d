@@ -34,7 +34,7 @@ export const Changelog: React.FC<ChangelogProps> = ({ onClose }) => {
                         </span>
                         <span className="text-black text-xl">{ver.title}</span>
                         {i === 0 && (
-                            <span className="bg-red-600 text-black text-xs px-2 py-0.5 rounded animate-pulse">
+                            <span className="bg-red-600 text-black text-xs px-2 py-0.5 animate-pulse">
                                 LATEST
                             </span>
                         )}
