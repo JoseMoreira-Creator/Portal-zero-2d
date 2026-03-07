@@ -2,45 +2,101 @@
 import React from 'react';
 import { GAME_BALANCE, BLOCK_SIZE, MAX_STACK, WORLD_WIDTH, WORLD_HEIGHT, MINING_AREA_WIDTH, MINING_AREA_HEIGHT } from '../constants';
 import { COLORS } from '../assets/art';
-import { Entity, GameState, ItemType, MobType, PlayerStats, CursorState, Vector2, WorldState, StoredDimensionData } from '../types';
+import { Entity, GameState, ItemType, MobType, PlayerStats, CursorState, Vector2, WorldState, StoredDimensionData, WaterBody } from '../types';
 import { getAngle, getDistance, getVector, normalizeVector } from '../utils/math';
+import { playSound } from '../utils/audio';
 import { updateHostileMob } from './mobs/hostile';
 import { updatePassiveMob } from './mobs/passive';
 import { updateBoss } from './mobs/bosses';
 
 export const createInitialWorld = (screenWidth: number, screenHeight: number): WorldState => {
   const entities: Entity[] = [];
-  const waterBodies: { x: number, y: number, radius: number }[] = [];
+  const waterBodies: WaterBody[] = [];
   
-  const spawnPos = { x: 0, y: 0 };
-  const SAFE_ZONE_RADIUS = 200; // Area around spawn that must remain empty
+  const spawnPos = { x: 400, y: 400 };
+  const SAFE_ZONE_RADIUS = 100; // Area around spawn that must remain empty
+  const ISLAND_CENTER = { x: 400, y: 400 };
+  const ISLAND_RADIUS = 300;
 
   // Generate Water Ponds
   let waterAttempts = 0;
-  while(waterBodies.length < 15 && waterAttempts < 1000) {
+  while(waterBodies.length < 10 && waterAttempts < 1000) {
       waterAttempts++;
-      const x = Math.random() * (WORLD_WIDTH - 200) + 100;
-      const y = Math.random() * (WORLD_HEIGHT - 200) + 100;
-      const radius = 80 + Math.random() * 80;
-
+      
+      // Generate center within island
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * (ISLAND_RADIUS - 50);
+      const x = ISLAND_CENTER.x + Math.cos(angle) * dist;
+      const y = ISLAND_CENTER.y + Math.sin(angle) * dist;
+      
       // Check distance from spawn
-      if (getDistance({x, y}, spawnPos) < radius + SAFE_ZONE_RADIUS) continue;
+      if (getDistance({x, y}, spawnPos) < SAFE_ZONE_RADIUS + 50) continue;
 
-      waterBodies.push({ x, y, radius });
+      // Blob shape: multiple circles
+      const numCircles = 3 + Math.floor(Math.random() * 3);
+      const circles = [];
+      for(let i=0; i<numCircles; i++) {
+          circles.push({
+              x: x + (Math.random() - 0.5) * 50,
+              y: y + (Math.random() - 0.5) * 50,
+              radius: 20 + Math.random() * 30
+          });
+      }
+
+      // Check overlap with existing water bodies
+      let overlap = false;
+      for (const existingLake of waterBodies as WaterBody[]) {
+          for (const circle of circles) {
+              for (const existingCircle of existingLake.circles) {
+                  if (getDistance(circle, existingCircle) < circle.radius + existingCircle.radius + 20) {
+                      overlap = true;
+                      break;
+                  }
+              }
+              if (overlap) break;
+          }
+          if (overlap) break;
+      }
+      
+      if (!overlap) {
+          waterBodies.push({ x, y, radius: 0, circles }); // radius 0 as it's not used for blob
+      }
   }
 
   let attempts = 0;
   
-  // Trees (Oak & Birch) - Increased count for larger world
-  while (entities.length < 300 && attempts < 5000) {
+  // Trees (Oak & Birch) - Reduced count for smaller world
+  while (entities.length < 50 && attempts < 5000) {
     attempts++;
     const pos = { 
-        x: Math.random() * (WORLD_WIDTH - 50) + 25, 
-        y: Math.random() * (WORLD_HEIGHT - 50) + 25 
+        x: Math.random() * (WORLD_WIDTH - 200) + 100, 
+        y: Math.random() * (WORLD_HEIGHT - 200) + 100 
     };
 
     // Prevent overlap with spawn
     if (getDistance(pos, spawnPos) < SAFE_ZONE_RADIUS) continue;
+
+    // Check if on grass (water bodies are not grass)
+    // Renderer defines grass as dist <= 18 blocks from center (25, 25)
+    // BLOCK_SIZE = 16. Center = 400, 400.
+    const blockX = pos.x / BLOCK_SIZE;
+    const blockY = pos.y / BLOCK_SIZE;
+    const distFromCenter = Math.hypot(blockX - 25, blockY - 25);
+    
+    // 18 is the boundary between grass and sand. We want strictly grass.
+    if (distFromCenter > 18) continue;
+
+    let onWater = false;
+    for (const w of waterBodies) {
+        for (const circle of w.circles) {
+            if (getDistance(pos, circle) < circle.radius) {
+                onWater = true;
+                break;
+            }
+        }
+        if (onWater) break;
+    }
+    if (onWater) continue;
 
     // Prevent overlap with entities and water
     let overlap = false;
@@ -48,14 +104,14 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
         if (getDistance(pos, e.pos) < 40) { overlap = true; break; } 
     }
     for (const w of waterBodies) {
-        // Square Check for overlapping generation
-        const halfSize = w.radius + 30; // Buffer
-        if (
-            pos.x > w.x - halfSize &&
-            pos.x < w.x + halfSize &&
-            pos.y > w.y - halfSize &&
-            pos.y < w.y + halfSize
-        ) { overlap = true; break; }
+        let inLake = false;
+        for (const circle of w.circles) {
+            if (getDistance(pos, circle) < circle.radius + 30) {
+                inLake = true;
+                break;
+            }
+        }
+        if (inLake) { overlap = true; break; }
     }
 
     if (!overlap) {
@@ -89,28 +145,47 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
 
   // Rocks & Coal (Iron removed from surface)
   attempts = 0;
-  while (entities.length < 500 && attempts < 5000) {
+  while (entities.length < 100 && attempts < 5000) {
       attempts++;
       const pos = { 
-          x: Math.random() * (WORLD_WIDTH - 50) + 25, 
-          y: Math.random() * (WORLD_HEIGHT - 50) + 25 
+          x: Math.random() * (WORLD_WIDTH - 200) + 100, 
+          y: Math.random() * (WORLD_HEIGHT - 200) + 100 
       };
 
       // Prevent overlap with spawn
       if (getDistance(pos, spawnPos) < SAFE_ZONE_RADIUS) continue;
+
+      // Check if on grass (water bodies are not grass)
+      const blockX = pos.x / BLOCK_SIZE;
+      const blockY = pos.y / BLOCK_SIZE;
+      const distFromCenter = Math.hypot(blockX - 25, blockY - 25);
+      if (distFromCenter > 18) continue;
+
+      let onWater = false;
+      for (const w of waterBodies) {
+          for (const circle of w.circles) {
+              if (getDistance(pos, circle) < circle.radius) {
+                  onWater = true;
+                  break;
+              }
+          }
+          if (onWater) break;
+      }
+      if (onWater) continue;
 
       let overlap = false;
       for (const e of entities) {
           if (getDistance(pos, e.pos) < 32) { overlap = true; break; } 
       }
       for (const w of waterBodies) {
-          const halfSize = w.radius + 20; 
-          if (
-            pos.x > w.x - halfSize &&
-            pos.x < w.x + halfSize &&
-            pos.y > w.y - halfSize &&
-            pos.y < w.y + halfSize
-          ) { overlap = true; break; }
+          let inLake = false;
+          for (const circle of w.circles) {
+              if (getDistance(pos, circle) < circle.radius + 20) {
+                  inLake = true;
+                  break;
+              }
+          }
+          if (inLake) { overlap = true; break; }
       }
 
       if (!overlap) {
@@ -402,23 +477,26 @@ export const updateGame = (
   const w = world;
   const c = w.cursor;
 
+  // Footsteps
+  const isMoving = c.keys.w || c.keys.a || c.keys.s || c.keys.d;
+  if (isMoving && world.frameCount % 20 === 0) {
+      playSound('walk');
+  }
+
   // --- UPDATE MOUSE WORLD POS ---
   // Just once per frame to ensure interaction logic has correct coordinates
   updateCursorWorldPos(c, canvasWidth, canvasHeight, world.zoom, world.cameraPos);
 
-  // --- WATER LOGIC (SQUARE COLLISION) ---
+  // --- WATER LOGIC (BLOB COLLISION) ---
   let inWater = false;
   for (const lake of w.waterBodies) {
-      // Treating lake.radius as Half-Size Extent
-      if (
-          c.pos.x >= lake.x - lake.radius && 
-          c.pos.x <= lake.x + lake.radius &&
-          c.pos.y >= lake.y - lake.radius &&
-          c.pos.y <= lake.y + lake.radius
-      ) {
-          inWater = true;
-          break;
+      for (const circle of lake.circles) {
+          if (getDistance(c.pos, circle) < circle.radius) {
+              inWater = true;
+              break;
+          }
       }
+      if (inWater) break;
   }
   c.inWater = inWater; // UPDATE STATE
   // Breath logic and damage removed as per request
@@ -740,9 +818,12 @@ export const updateGame = (
 
                  if (isMining) {
                      if (effectiveDamage > 0) {
-                         ent.hp -= effectiveDamage;
+                         playSound('mine');
+                        ent.hp -= effectiveDamage;
                          spawnParticles(w, ent.pos, ent.color, 2);
                          if (ent.hp <= 0) {
+                          playSound('death');
+                          playSound('death');
                              // Drops logic
                              if (ent.type === 'TREE') {
                                  for(let j=0; j<3; j++) dropItem(w, ent.pos, ItemType.WOOD);
@@ -775,7 +856,7 @@ export const updateGame = (
                                  dropItem(w, ent.pos, ItemType.LADDER);
                              }
                              
-                             w.entities.splice(i, 1);
+                            w.entities.splice(i, 1);
                              if (ent.type === 'CRAFTING_TABLE' || ent.type === ItemType.ANVIL) {
                                  c.isInventoryOpen = false;
                                  c.isCraftingTableOpen = false;
@@ -792,6 +873,7 @@ export const updateGame = (
                      if (activeItem === ItemType.AXE_STONE) combatDamage = 15;
                      if (activeItem === ItemType.PICKAXE_WOOD) combatDamage = 8;
 
+                     playSound('hit');
                      ent.hp -= combatDamage;
                      const push = normalizeVector(getVector(c.pos, ent.pos));
                      ent.pos.x += push.x * 15;
@@ -855,6 +937,7 @@ export const updateGame = (
   for (let i = w.items.length - 1; i >= 0; i--) {
       const item = w.items[i];
       if (getDistance(c.pos, item.pos) < 30) {
+          playSound('pickup');
           addToInventory(c.inventory, item.type);
           w.items.splice(i, 1);
       }
@@ -865,6 +948,9 @@ export const updateGame = (
   }
 
   if (c.meleeActive) {
+    if (c.meleeTimer === GAME_BALANCE.MELEE_DURATION_FRAMES) {
+        playSound('swing');
+    }
     c.meleeTimer--;
     if (c.meleeTimer <= 0) c.meleeActive = false;
   }
@@ -899,6 +985,7 @@ export const updateGame = (
       });
       
       setGameState(GameState.GAME_OVER);
+      playSound('death');
   }
 };
 

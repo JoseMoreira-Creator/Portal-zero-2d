@@ -9,10 +9,11 @@ interface OptionsProps {
   onClose: () => void;
   onOpenWiki: () => void;
   onOpenChangelog: () => void;
-  onSaveAndQuit: () => void; // New prop
+  onSave: () => void;
+  onSaveAndQuit: () => void;
 }
 
-export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose, onOpenWiki, onOpenChangelog, onSaveAndQuit }) => {
+export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose, onOpenWiki, onOpenChangelog, onSave, onSaveAndQuit }) => {
   
   const toggleAnimations = () => {
       setSettings(prev => ({ ...prev, animations: !prev.animations }));
@@ -100,6 +101,12 @@ export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose
         </div>
 
         <div className="w-full flex gap-2">
+            <button 
+                onClick={onSave}
+                className="mc-btn flex-1 py-3 text-lg font-bold text-green-900 bg-green-200 border-green-800"
+            >
+                SAVE
+            </button>
             <button 
                 onClick={onSaveAndQuit}
                 className="mc-btn flex-1 py-3 text-lg font-bold text-red-900 bg-red-200 border-red-800"

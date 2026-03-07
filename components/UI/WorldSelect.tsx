@@ -1,23 +1,39 @@
 
 import React, { useState } from 'react';
 import { WorldMetadata } from '../../types';
+import { Pencil, Trash2 } from 'lucide-react';
 
 interface WorldSelectProps {
   worlds: WorldMetadata[];
   onCreateWorld: (name: string) => void;
   onSelectWorld: (id: string) => void;
   onDeleteWorld: (id: string) => void;
+  onRenameWorld: (id: string, newName: string) => void;
   onBack: () => void;
 }
 
-export const WorldSelect: React.FC<WorldSelectProps> = ({ worlds, onCreateWorld, onSelectWorld, onDeleteWorld, onBack }) => {
+export const WorldSelect: React.FC<WorldSelectProps> = ({ worlds, onCreateWorld, onSelectWorld, onDeleteWorld, onRenameWorld, onBack }) => {
+  console.log("Worlds:", worlds);
   const [isCreating, setIsCreating] = useState(false);
   const [newWorldName, setNewWorldName] = useState('');
+  const [editingWorld, setEditingWorld] = useState<WorldMetadata | null>(null);
+  const [editName, setEditName] = useState('');
 
   const handleCreateSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       if (newWorldName.trim()) {
           onCreateWorld(newWorldName.trim());
+          setIsCreating(false);
+          setNewWorldName('');
+      }
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (editingWorld && editName.trim()) {
+          onRenameWorld(editingWorld.id, editName.trim());
+          setEditingWorld(null);
+          setEditName('');
       }
   };
 
@@ -52,30 +68,46 @@ export const WorldSelect: React.FC<WorldSelectProps> = ({ worlds, onCreateWorld,
                             </div>
 
                             {/* INFO */}
-                            <div className="flex-1">
-                                <h3 className="text-2xl font-bold text-[#222]">{world.name}</h3>
-                                <p className="text-sm text-[#444] font-mono">Last Played: {new Date(world.lastPlayed).toLocaleDateString()} {new Date(world.lastPlayed).toLocaleTimeString()}</p>
-                                <p className="text-sm text-[#444] font-mono truncate text-xs opacity-50">ID: {world.id}</p>
+                            <div className="flex-1 flex items-center gap-2">
+                                <h3 className="text-lg sm:text-2xl font-bold text-[#222]">{world.name}</h3>
+                            </div>
+                            <div className="hidden sm:block flex-1">
+                                <p className="text-xs sm:text-sm text-[#444] font-mono">Last Played: {new Date(world.lastPlayed).toLocaleDateString()} {new Date(world.lastPlayed).toLocaleTimeString()}</p>
+                                <p className="text-xs sm:text-sm text-[#444] font-mono truncate opacity-50">ID: {world.id}</p>
                             </div>
 
                             {/* BUTTONS */}
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-2 w-24 sm:w-32">
                                 <button 
                                     onClick={() => onSelectWorld(world.id)}
-                                    className="mc-btn w-32 py-2 text-green-900 font-bold border-green-900 bg-green-200 hover:bg-green-300"
+                                    className="mc-btn w-full py-2 text-green-900 font-bold border-green-900 bg-green-200 hover:bg-green-300 text-sm sm:text-base"
                                 >
                                     ► PLAY
                                 </button>
-                                <button 
-                                    onClick={() => {
-                                        if(window.confirm(`Delete world "${world.name}" forever?`)) {
-                                            onDeleteWorld(world.id);
-                                        }
-                                    }}
-                                    className="mc-btn w-32 py-1 text-red-900 text-sm font-bold opacity-70 hover:opacity-100"
-                                >
-                                    DELETE
-                                </button>
+                                <div className="flex gap-1">
+                                    <button 
+                                        onClick={() => {
+                                            setEditingWorld(world);
+                                            setEditName(world.name);
+                                        }}
+                                        className="mc-btn flex-1 py-1 text-blue-900 font-bold border-blue-900 bg-blue-200 hover:bg-blue-300 flex items-center justify-center gap-1 text-xs sm:text-sm"
+                                        title="Edit World"
+                                    >
+                                        <Pencil size={14} />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if(window.confirm(`Delete world "${world.name}" forever?`)) {
+                                                onDeleteWorld(world.id);
+                                            }
+                                        }}
+                                        className="mc-btn flex-1 py-1 text-red-900 font-bold border-red-900 bg-red-200 hover:bg-red-300 flex items-center justify-center gap-1 text-xs sm:text-sm"
+                                        title="Delete World"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))
@@ -130,6 +162,41 @@ export const WorldSelect: React.FC<WorldSelectProps> = ({ worlds, onCreateWorld,
                             className="mc-btn flex-1 py-2 font-bold bg-green-200 text-green-900"
                         >
                             CREATE
+                        </button>
+                    </div>
+                </form>
+            </div>
+        )}
+
+        {/* EDIT MODAL */}
+        {editingWorld && (
+            <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-[60] backdrop-blur-sm">
+                <form onSubmit={handleEditSubmit} className="mc-panel p-6 w-96 bg-[#c6c6c6] flex flex-col gap-4">
+                    <h2 className="text-2xl font-bold text-[#222]">Edit World</h2>
+                    
+                    <input 
+                        type="text" 
+                        placeholder="World Name..."
+                        value={editName}
+                        onChange={e => setEditName(e.target.value)}
+                        maxLength={20}
+                        className="p-2 text-xl font-mono border-2 border-[#555] bg-[#ddd] text-black placeholder-gray-500 focus:outline-none focus:border-black"
+                    />
+
+                    <div className="flex gap-2 mt-4">
+                        <button 
+                            type="button" 
+                            onClick={() => setEditingWorld(null)}
+                            className="mc-btn flex-1 py-2 font-bold"
+                        >
+                            CANCEL
+                        </button>
+                        <button 
+                            type="submit" 
+                            disabled={!editName.trim()}
+                            className="mc-btn flex-1 py-2 font-bold bg-blue-200 text-blue-900"
+                        >
+                            SAVE
                         </button>
                     </div>
                 </form>

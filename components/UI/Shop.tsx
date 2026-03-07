@@ -59,18 +59,6 @@ export const Shop: React.FC<ShopProps> = ({ attributes, gold, onUpgrade, onResum
 
         <div className="flex flex-wrap gap-4 justify-center mb-6 w-full">
           <UpgradeCard 
-            label="SHARPNESS" 
-            attrKey="precision" 
-            icon="⚔️"
-            desc="Makes the SHIELD physically larger and easier to block with."
-          />
-          <UpgradeCard 
-            label="QUICK DRAW" 
-            attrKey="tension" 
-            icon="🏹"
-            desc="Increases FIRE RATE. Shoot arrows much faster."
-          />
-          <UpgradeCard 
             label="UNBREAKING" 
             attrKey="recovery" 
             icon="🛡️"

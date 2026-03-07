@@ -2,6 +2,7 @@
 
 import { Entity, MobType, Vector2, WorldState } from '../../types';
 import { getDistance, getVector, normalizeVector, getAngle } from '../../utils/math';
+import { playSound } from '../../utils/audio';
 
 export const updateHostileMob = (ent: Entity, playerPos: Vector2, world: WorldState, setStats: any) => {
     const dist = getDistance(ent.pos, playerPos);
@@ -115,6 +116,7 @@ export const updateHostileMob = (ent: Entity, playerPos: Vector2, world: WorldSt
                 // Damage
                 // Only deal damage if in the "jump" phase or very close, 
                 // but usually collision checks are constant.
+                playSound('hit');
                 setStats((prev: any) => ({...prev, hp: prev.hp - 8}));
                 world.camShake = 5;
                 
@@ -183,10 +185,12 @@ export const updateHostileMob = (ent: Entity, playerPos: Vector2, world: WorldSt
             // Hit Player
             if (ent.type === MobType.CREEPER) {
                 // Explode
+                playSound('death');
                 world.camShake = 15;
                 setStats((prev: any) => ({...prev, hp: prev.hp - 40}));
                 ent.hp = 0; // Suicide
             } else {
+                playSound('hit');
                 setStats((prev: any) => ({...prev, hp: prev.hp - 10}));
                 world.camShake = 5;
                 ent.attackTimer = 60;

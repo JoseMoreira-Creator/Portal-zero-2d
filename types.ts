@@ -16,8 +16,6 @@ export interface GameSettings {
 }
 
 export interface Attributes {
-  precision: number;
-  tension: number;
   recovery: number;
 }
 
@@ -119,10 +117,6 @@ export interface PlayerStats {
   hunger: number;
   maxHunger: number;
   score: number;
-  tension: number;
-  maxTension: number;
-  precision: number;
-  maxPrecision: number;
 }
 
 export interface Projectile {
@@ -214,12 +208,19 @@ export interface CursorState {
   autoTargetId: string | null;
 }
 
+export interface WaterBody {
+    x: number;
+    y: number;
+    radius: number;
+    circles: { x: number, y: number, radius: number }[];
+}
+
 // Data to persist when switching dimensions
 export interface StoredDimensionData {
     entities: Entity[];
     items: { id: string, type: ItemType, pos: Vector2, life: number }[];
     projectiles: Projectile[];
-    waterBodies: { x: number, y: number, radius: number }[];
+    waterBodies: WaterBody[];
     playerPos: Vector2;
 }
 
@@ -242,7 +243,7 @@ export interface WorldState {
   particles: Particle[];
   entities: Entity[];
   items: { id: string, type: ItemType, pos: Vector2, life: number }[]; 
-  waterBodies: { x: number, y: number, radius: number }[];
+  waterBodies: WaterBody[];
   cursor: CursorState;
   cameraPos: Vector2; // New camera position
   

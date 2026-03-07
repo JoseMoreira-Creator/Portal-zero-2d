@@ -5,8 +5,8 @@ export const SCREEN_HEIGHT = window.innerHeight;
 export const BLOCK_SIZE = 16;
 export const MAX_STACK = 99;
 
-export const WORLD_WIDTH = 3000;
-export const WORLD_HEIGHT = 3000;
+export const WORLD_WIDTH = 800;
+export const WORLD_HEIGHT = 800;
 
 export const MINING_AREA_WIDTH = 1200; // Smaller area for underground to save performance
 export const MINING_AREA_HEIGHT = 1200;
@@ -20,8 +20,6 @@ export const TOTAL_LOC = 3300;
 export const GAME_BALANCE = {
   PLAYER_BASE_HP: 100,
   PLAYER_BASE_HUNGER: 20,
-  PLAYER_BASE_TENSION: 100,
-  PLAYER_BASE_PRECISION: 100,
   PLAYER_SPEED: 5, 
   PLAYER_WATER_SPEED: 2.5,
   

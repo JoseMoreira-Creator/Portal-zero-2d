@@ -100,40 +100,62 @@ export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings }: 
                      ctx.fillRect(x + 10, y + 10, 6, 6);
                  }
              } else {
-                 // Surface Grass Details
-                 const n = noise(i, j);
-                 if (n > 0.6) {
-                     ctx.fillStyle = COLORS.GRASS_BASE_2;
-                     ctx.fillRect(x + 4, y + 4, 24, 24);
-                 } else if (n > 0.4) {
-                     ctx.fillStyle = COLORS.GRASS_DETAIL;
-                     ctx.fillRect(x + 12, y + 12, 4, 4);
-                     ctx.fillRect(x + 16, y + 10, 2, 6);
+                 // Surface Island/Beach
+                 const dist = Math.hypot(i - 25, j - 25);
+                 if (dist > 22) {
+                     ctx.fillStyle = '#1e90ff'; // Water
+                     ctx.fillRect(x, y, BLOCK_SIZE, BLOCK_SIZE);
+                 } else if (dist > 18) {
+                     ctx.fillStyle = '#f4d03f'; // Sand
+                     ctx.fillRect(x, y, BLOCK_SIZE, BLOCK_SIZE);
+                 } else {
+                     // Grass
+                     const n = noise(i, j);
+                     if (n > 0.6) {
+                         ctx.fillStyle = COLORS.GRASS_BASE_2;
+                         ctx.fillRect(x + 4, y + 4, 24, 24);
+                     } else if (n > 0.4) {
+                         ctx.fillStyle = COLORS.GRASS_DETAIL;
+                         ctx.fillRect(x + 12, y + 12, 4, 4);
+                         ctx.fillRect(x + 16, y + 10, 2, 6);
+                     }
                  }
              }
           }
       }
   }
 
-  // 1.5 Draw Water Bodies (Square)
+  // 1.5 Draw Water Bodies (Blob)
   waterBodies.forEach(lake => {
-      if (lake.x + lake.radius < (cursor.pos.x - visibleWidth) || lake.x - lake.radius > (cursor.pos.x + visibleWidth)) return;
-      
-      const size = lake.radius * 2;
-      const x = lake.x - lake.radius;
-      const y = lake.y - lake.radius;
+      // Check if any circle is visible
+      let visible = false;
+      for(const circle of lake.circles) {
+          if (circle.x + circle.radius > (cameraPos.x - visibleWidth/2) && circle.x - circle.radius < (cameraPos.x + visibleWidth/2) &&
+              circle.y + circle.radius > (cameraPos.y - visibleHeight/2) && circle.y - circle.radius < (cameraPos.y + visibleHeight/2)) {
+              visible = true;
+              break;
+          }
+      }
+      if (!visible) return;
 
       ctx.fillStyle = COLORS.WATER;
-      ctx.fillRect(x, y, size, size);
-      
       ctx.strokeStyle = '#4FA4B8';
       ctx.lineWidth = 4;
-      ctx.strokeRect(x, y, size, size);
 
+      // Draw all circles
+      for(const circle of lake.circles) {
+          ctx.beginPath();
+          ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+      }
+      
+      // Draw waves (simplified for blob)
       ctx.fillStyle = 'rgba(255,255,255,0.2)';
-      const waveOffset = Math.sin(frameCount * 0.05 + lake.x) * 5;
-      ctx.fillRect(x, y + 20 + waveOffset, size, 4);
-      ctx.fillRect(x, y + size - 30 - waveOffset, size, 4);
+      for(const circle of lake.circles) {
+          const waveOffset = Math.sin(frameCount * 0.05 + circle.x) * 5;
+          ctx.fillRect(circle.x - circle.radius, circle.y + waveOffset, circle.radius * 2, 4);
+      }
   });
 
   // 2. Draw Items (Drops)
@@ -143,10 +165,10 @@ export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings }: 
       ctx.translate(item.pos.x, item.pos.y + bob);
       
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.fillRect(-8, 4, 16, 8);
+      ctx.fillRect(-4, 2, 8, 4);
 
-      if (!drawSprite(ctx, item.type, 0, 0, 20, 20)) {
-          renderIcon(ctx, item.type, 20);
+      if (!drawSprite(ctx, item.type, 0, 0, 12, 12)) {
+          renderIcon(ctx, item.type, 12);
       }
       ctx.restore();
   });
@@ -662,7 +684,7 @@ const renderAdventurer = (ctx: CanvasRenderingContext2D, cursor: CursorState, fr
     if (slot.item !== ItemType.EMPTY) {
         ctx.rotate(Math.PI/4); 
         if (!drawSprite(ctx, slot.item, 0, 0, 16, 16)) {
-             renderIcon(ctx, slot.item, 20);
+             renderIcon(ctx, slot.item, 16);
         }
     }
     ctx.restore();

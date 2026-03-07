@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { InventorySlot, ItemType, CursorState, Equipment } from '../../types';
 import { CRAFTING_RECIPES, MAX_STACK } from '../../constants';
 import { ITEM_ICONS, ITEM_DETAILS } from '../../assets/art';
+import { playSound } from '../../utils/audio';
 
 interface InventoryProps {
   cursor: CursorState;
@@ -315,9 +316,11 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
 
       if (isCraftingOutput && craftOutput) {
           if (hand.item === ItemType.EMPTY) {
+              playSound('craft');
               setHand({ ...craftOutput });
               consumeCraftingIngredients();
           } else if (hand.item === craftOutput.item && hand.count + craftOutput.count <= MAX_STACK) {
+              playSound('craft');
               setHand({ ...hand, count: hand.count + craftOutput.count });
               consumeCraftingIngredients();
           }
@@ -329,6 +332,7 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
       // 1. Pick up
       if (hand.item === ItemType.EMPTY) {
           if (currentSlot.item !== ItemType.EMPTY) {
+              playSound('pickup');
               setHand(currentSlot);
               updateSlot(index, { item: ItemType.EMPTY, count: 0 }, isCraftingInput);
           }
@@ -467,12 +471,12 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
             onMouseLeave={handleMouseLeave}
             onContextMenu={(e) => e.preventDefault()}
             onDoubleClick={() => !isCraft && handleDoubleClick(idx)}
-            className="w-14 h-14 bg-[#8b8b8b] border-2 border-[#373737] hover:bg-[#a0a0a0] flex items-center justify-center relative cursor-pointer select-none shadow-inner group"
+            className="w-4 h-4 bg-[#8b8b8b] border border-[#373737] hover:bg-[#a0a0a0] flex items-center justify-center relative cursor-pointer select-none shadow-inner group"
           >
               {slot.item !== ItemType.EMPTY && (
                   <>
-                    <span className="text-3xl pointer-events-none filter drop-shadow-sm">{ITEM_ICONS[slot.item] || '?'}</span>
-                    <span className="absolute bottom-0 right-0 text-black text-base font-bold shadow-black drop-shadow-md pointer-events-none mb-0.5 mr-1">{slot.count}</span>
+                    <span className="text-[10px] pointer-events-none filter drop-shadow-sm">{ITEM_ICONS[slot.item] || '?'}</span>
+                    <span className="absolute bottom-0 right-0 text-black text-[8px] font-bold shadow-black drop-shadow-md pointer-events-none mb-0.5 mr-1">{slot.count}</span>
                   </>
               )}
           </div>

@@ -685,6 +685,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                 if (world.current) world.current.cursor.isInventoryOpen = true;
                 setShowInventory(true);
             }}
+            onSelectSlot={(index) => {
+                if (world.current) world.current.cursor.hotbarSelectedIndex = index;
+                setHotbarIndex(index);
+            }}
           />
       )}
       {showInventory && (

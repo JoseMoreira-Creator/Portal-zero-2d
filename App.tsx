@@ -65,10 +65,6 @@ const App: React.FC = () => {
     hunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
     maxHunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
     score: 0,
-    tension: GAME_BALANCE.PLAYER_BASE_TENSION,
-    maxTension: GAME_BALANCE.PLAYER_BASE_TENSION,
-    precision: GAME_BALANCE.PLAYER_BASE_PRECISION,
-    maxPrecision: GAME_BALANCE.PLAYER_BASE_PRECISION
   });
   const [activeSlot, setActiveSlot] = useState<ItemType>(ItemType.EMPTY);
   const [showChangelog, setShowChangelog] = useState(false);
@@ -108,10 +104,6 @@ const App: React.FC = () => {
               hunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
               maxHunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
               score: 0,
-              tension: GAME_BALANCE.PLAYER_BASE_TENSION,
-              maxTension: GAME_BALANCE.PLAYER_BASE_TENSION,
-              precision: GAME_BALANCE.PLAYER_BASE_PRECISION,
-              maxPrecision: GAME_BALANCE.PLAYER_BASE_PRECISION
           });
           
           setIsLoading(false);
@@ -143,10 +135,6 @@ const App: React.FC = () => {
                     hunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
                     maxHunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
                     score: 0,
-                    tension: GAME_BALANCE.PLAYER_BASE_TENSION,
-                    maxTension: GAME_BALANCE.PLAYER_BASE_TENSION,
-                    precision: GAME_BALANCE.PLAYER_BASE_PRECISION,
-                    maxPrecision: GAME_BALANCE.PLAYER_BASE_PRECISION
                   });
                   
                   // If launching from multiplayer menu
@@ -164,20 +152,25 @@ const App: React.FC = () => {
       }, 1000);
   };
 
-  const handleDeleteWorld = (id: string) => {
-      const updatedWorlds = worlds.filter(w => w.id !== id);
-      setWorlds(updatedWorlds);
+  const handleRenameWorld = (id: string, newName: string) => {
+      const updatedWorlds = worlds.map(w => w.id === id ? { ...w, name: newName } : w);
       localStorage.setItem(STORAGE_KEY_META, JSON.stringify(updatedWorlds));
-      localStorage.removeItem(STORAGE_KEY_DATA_PREFIX + id);
+      setWorlds(updatedWorlds);
   };
 
-  const handleSaveAndQuit = () => {
-      // If multiplayer client, just quit without saving to local (Host saves)
-      // Actually, saving logic handles isHost check if we were detailed, but for now just save locally if ID exists
+  const handleDeleteWorld = (id: string) => {
+      console.log("Deleting world:", id);
+      const updatedWorlds = worlds.filter(w => w.id !== id);
+      console.log("Updated worlds:", updatedWorlds);
+      localStorage.setItem(STORAGE_KEY_META, JSON.stringify(updatedWorlds));
+      localStorage.removeItem(STORAGE_KEY_DATA_PREFIX + id);
+      setWorlds(updatedWorlds);
+  };
+
+  const handleSave = () => {
       if (saveGameRef.current && activeWorldId) {
           const { world, thumb } = saveGameRef.current.saveGame();
           
-          // Only save if single player or host. Clients don't save map locally (simplicity)
           if (!world.isMultiplayer || world.isHost) {
               localStorage.setItem(STORAGE_KEY_DATA_PREFIX + activeWorldId, JSON.stringify(world));
 
@@ -190,8 +183,13 @@ const App: React.FC = () => {
 
               localStorage.setItem(STORAGE_KEY_META, JSON.stringify(updatedWorlds));
               setWorlds(updatedWorlds);
+              alert("Game Saved!");
           }
       }
+  };
+
+  const handleSaveAndQuit = () => {
+      handleSave();
       
       // Disconnect multiplayer
       if (multiplayerRef.current) {
@@ -282,6 +280,7 @@ const App: React.FC = () => {
             onClose={() => setShowOptions(false)}
             onOpenWiki={() => { setShowOptions(false); setShowWiki(true); }}
             onOpenChangelog={() => { setShowOptions(false); setShowChangelog(true); }}
+            onSave={handleSave}
             onSaveAndQuit={handleSaveAndQuit}
           />
       )}
@@ -296,6 +295,7 @@ const App: React.FC = () => {
                 else handleSelectWorld(id);
             }}
             onDeleteWorld={handleDeleteWorld}
+            onRenameWorld={handleRenameWorld}
             onBack={() => {
                 setGameState(GameState.MENU);
                 setMultiplayerMode(null);
