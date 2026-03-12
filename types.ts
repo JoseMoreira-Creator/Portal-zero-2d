@@ -2,7 +2,6 @@
 export type Vector2 = { x: number; y: number };
 
 export enum GameState {
-  START = 'START',
   MENU = 'MENU',
   WORLD_SELECT = 'WORLD_SELECT',
   MULTIPLAYER_MENU = 'MULTIPLAYER_MENU', // Novo estado

@@ -18,7 +18,7 @@ const STORAGE_KEY_META = 'pz_worlds_meta';
 const STORAGE_KEY_DATA_PREFIX = 'pz_world_data_';
 
 const App: React.FC = () => {
-  const [gameState, setGameState] = useState<GameState>(GameState.START);
+  const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   
   // World Management
   const [worlds, setWorlds] = useState<WorldMetadata[]>([]);
@@ -254,19 +254,6 @@ const App: React.FC = () => {
       
       {/* 1. Loading Screen Overlay */}
       {isLoading && <LoadingScreen />}
-
-      {/* Start Screen */}
-      {gameState === GameState.START && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black text-white">
-          <h1 className="text-6xl font-bold mb-8">CURSOR CRAFT</h1>
-          <button 
-            onClick={() => setGameState(GameState.MENU)}
-            className="px-8 py-4 bg-white text-black font-bold text-xl rounded hover:bg-gray-200"
-          >
-            Start Game
-          </button>
-        </div>
-      )}
 
       {/* 2. The Game World (Canvas) */}
       <GameCanvas 
