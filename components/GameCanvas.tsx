@@ -598,10 +598,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       if (gameState === GameState.PLAYING && world.current) {
         // Update Logic
         // Smooth camera follow
-        const targetCamX = world.current.cursor.pos.x;
-        const targetCamY = world.current.cursor.pos.y;
-        world.current.cameraPos.x += (targetCamX - world.current.cameraPos.x) * 0.1;
-        world.current.cameraPos.y += (targetCamY - world.current.cameraPos.y) * 0.1;
+        const targetCamX = settings.cameraLock ? world.current.cursor.pos.x : world.current.cameraPos.x;
+        const targetCamY = settings.cameraLock ? world.current.cursor.pos.y : world.current.cameraPos.y;
+        
+        if (settings.cameraLock) {
+            world.current.cameraPos.x += (targetCamX - world.current.cameraPos.x) * 0.1;
+            world.current.cameraPos.y += (targetCamY - world.current.cameraPos.y) * 0.1;
+        } else {
+            // Manual panning logic when camera is unlocked
+            // This is handled by touch/mouse drag events
+        }
 
         updateGame(
           world.current, 

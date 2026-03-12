@@ -59,7 +59,8 @@ const App: React.FC = () => {
       animations: true,
       zoom: 1.0,
       showCoordinates: false,
-      controlScheme: 'TAP_TO_MOVE'
+      controlScheme: 'TAP_TO_MOVE',
+      cameraLock: true
   });
 
   const [stats, setStats] = useState<PlayerStats>({

@@ -14,6 +14,7 @@ export interface GameSettings {
   zoom: number;
   showCoordinates: boolean;
   controlScheme: 'TAP_TO_MOVE' | 'JOYSTICK';
+  cameraLock: boolean;
 }
 
 export interface Attributes {

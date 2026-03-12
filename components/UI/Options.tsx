@@ -23,6 +23,10 @@ export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose
       setSettings(prev => ({ ...prev, showCoordinates: !prev.showCoordinates }));
   };
 
+  const toggleCameraLock = () => {
+      setSettings(prev => ({ ...prev, cameraLock: !prev.cameraLock }));
+  };
+
   const handleZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = parseFloat(e.target.value);
       setSettings(prev => ({ ...prev, zoom: val }));
@@ -60,6 +64,20 @@ export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose
                     className={`mc-btn w-24 py-2 font-bold ${settings.showCoordinates ? 'text-green-800' : 'text-red-800'}`}
                 >
                     {settings.showCoordinates ? 'ON' : 'OFF'}
+                </button>
+            </div>
+
+            {/* Camera Lock Toggle */}
+            <div className="flex justify-between items-center bg-[#a0a0a0] p-3 border-2 border-[#555]">
+                <div className="flex flex-col">
+                    <span className="text-lg font-bold text-[#222]">Camera Lock</span>
+                    <span className="text-xs text-[#444]">Follow player</span>
+                </div>
+                <button 
+                    onClick={toggleCameraLock}
+                    className={`mc-btn w-24 py-2 font-bold ${settings.cameraLock ? 'text-green-800' : 'text-red-800'}`}
+                >
+                    {settings.cameraLock ? 'ON' : 'OFF'}
                 </button>
             </div>
 
