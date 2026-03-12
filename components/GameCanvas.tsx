@@ -614,7 +614,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           window.innerWidth, 
           window.innerHeight, 
           setStats, 
-          setGameState, 
+          (newState: GameState) => {
+              if (newState === GameState.GAME_OVER && saveRef.current) {
+                  saveRef.current.saveGame();
+                  console.log("Game saved on death");
+              }
+              setGameState(newState);
+          }, 
           stats
         );
         
