@@ -78,6 +78,8 @@ export const CRAFTING_RECIPES = [
   { inputs: ['STICK', 'STICK', 'STICK', 'VINE', 'VINE', 'VINE'], output: 'BOW', count: 1 },
   // Backpack: 4 Leather (not implemented) or 4 Planks + 2 Vines
   { inputs: ['PLANKS', 'PLANKS', 'PLANKS', 'PLANKS', 'VINE', 'VINE'], output: 'BACKPACK', count: 1 },
+  // Boat: 5 Planks (U-shape)
+  { inputs: ['PLANKS', 'PLANKS', 'PLANKS', 'PLANKS', 'PLANKS'], output: 'BOAT', count: 1 },
   // Iron Armor
   { inputs: ['IRON', 'IRON', 'IRON', 'IRON', 'IRON'], output: 'HELMET_IRON', count: 1 },
   { inputs: ['IRON', 'IRON', 'IRON', 'IRON', 'IRON', 'IRON', 'IRON', 'IRON'], output: 'CHEST_IRON', count: 1 },

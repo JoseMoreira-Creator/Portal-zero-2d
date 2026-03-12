@@ -63,6 +63,20 @@ export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose
                 </button>
             </div>
 
+            {/* Control Scheme Toggle */}
+            <div className="flex justify-between items-center bg-[#a0a0a0] p-3 border-2 border-[#555]">
+                <div className="flex flex-col">
+                    <span className="text-lg font-bold text-[#222]">Controls</span>
+                    <span className="text-xs text-[#444]">Input Method</span>
+                </div>
+                <button 
+                    onClick={() => setSettings(prev => ({ ...prev, controlScheme: prev.controlScheme === 'TAP_TO_MOVE' ? 'JOYSTICK' : 'TAP_TO_MOVE' }))}
+                    className="mc-btn w-32 py-2 font-bold text-xs"
+                >
+                    {settings.controlScheme === 'TAP_TO_MOVE' ? 'TAP / MOUSE' : 'JOYSTICK'}
+                </button>
+            </div>
+
              {/* Zoom Slider */}
              <div className="flex flex-col gap-2 bg-[#a0a0a0] p-3 border-2 border-[#555]">
                 <div className="flex justify-between items-center">

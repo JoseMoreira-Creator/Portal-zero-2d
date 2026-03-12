@@ -11,20 +11,26 @@ interface UseGameInputProps {
   isChatOpen: boolean;
   currentZoom: number;
   onZoomChange: (zoom: number) => void;
+  controlScheme: 'TAP_TO_MOVE' | 'JOYSTICK';
 }
 
-export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZoom, onZoomChange }: UseGameInputProps) => {
+export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZoom, onZoomChange, controlScheme }: UseGameInputProps) => {
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!world.current) return;
-    // PURE SCREEN COORDINATES
+    
+    // In Joystick mode, do NOT update mousePos from mouse movement for aiming
+    // But we still need screenMousePos for UI interactions if inventory is open
     world.current.cursor.screenMousePos = { x: e.clientX, y: e.clientY };
     
-    // Inventory logic relies on screen pos anyway
     if (world.current.cursor.isInventoryOpen) {
          world.current.cursor.mousePos = { x: e.clientX, y: e.clientY };
+    } else if (controlScheme === 'TAP_TO_MOVE') {
+         // Only update world mousePos if in Tap/Mouse mode
+         // In Joystick mode, JoystickControls handles this
+         // We don't update it here to avoid overwriting joystick aim
     }
-  }, [world]);
+  }, [world, controlScheme]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (gameState !== GameState.PLAYING || !world.current) return;
@@ -37,6 +43,8 @@ export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZ
     if (key === 'a') c.keys.a = true;
     if (key === 's') c.keys.s = true;
     if (key === 'd') c.keys.d = true;
+
+    if (key === 'q') c.isRightDown = true;
 
     if (key === 'e') {
         c.isInventoryOpen = !c.isInventoryOpen;
@@ -54,7 +62,7 @@ export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZ
 
     if (key === 'm') toggleMap();
 
-    if (['1','2','3','4','5','6','7','8','9'].includes(key)) {
+    if (['1','2'].includes(key)) {
         c.hotbarSelectedIndex = parseInt(key) - 1;
     }
     
@@ -78,6 +86,7 @@ export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZ
     if (key === 'a') world.current.cursor.keys.a = false;
     if (key === 's') world.current.cursor.keys.s = false;
     if (key === 'd') world.current.cursor.keys.d = false;
+    if (key === 'q') world.current.cursor.isRightDown = false;
   }, [world]);
 
   const handleMouseDown = useCallback((e: MouseEvent) => {
@@ -85,14 +94,15 @@ export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZ
     if (world.current.cursor.isInventoryOpen || isChatOpen) return; 
 
     const cursor = world.current.cursor;
-    if (e.button === 0) cursor.isLeftDown = true;
+    // Update mouse pos immediately on click to ensure direction is correct
+    cursor.screenMousePos = { x: e.clientX, y: e.clientY };
+    
     if (e.button === 2) cursor.isRightDown = true;
 
   }, [gameState, world, isChatOpen]);
 
   const handleMouseUp = useCallback((e: MouseEvent) => {
     if (!world.current) return;
-    if (e.button === 0) world.current.cursor.isLeftDown = false;
     if (e.button === 2) world.current.cursor.isRightDown = false;
   }, [world]);
 
@@ -103,8 +113,8 @@ export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZ
     const direction = e.deltaY > 0 ? 1 : -1;
     let newIndex = world.current.cursor.hotbarSelectedIndex + direction;
 
-    if (newIndex > 8) newIndex = 0;
-    if (newIndex < 0) newIndex = 8;
+    if (newIndex > 1) newIndex = 0;
+    if (newIndex < 0) newIndex = 1;
 
     world.current.cursor.hotbarSelectedIndex = newIndex;
   }, [gameState, world, isChatOpen]);

@@ -12,11 +12,13 @@ import { CURRENT_VERSION } from './versions';
 import { createInitialWorld } from './game/logic';
 import { loadSprites } from './assets/sprites'; // IMPORT NEW LOADER
 
+import { DevTools } from './components/UI/DevTools';
+
 const STORAGE_KEY_META = 'pz_worlds_meta';
 const STORAGE_KEY_DATA_PREFIX = 'pz_world_data_';
 
 const App: React.FC = () => {
-  const [gameState, setGameState] = useState<GameState>(GameState.MENU);
+  const [gameState, setGameState] = useState<GameState>(GameState.START);
   
   // World Management
   const [worlds, setWorlds] = useState<WorldMetadata[]>([]);
@@ -56,7 +58,8 @@ const App: React.FC = () => {
   const [settings, setSettings] = useState<GameSettings>({
       animations: true,
       zoom: 1.0,
-      showCoordinates: false
+      showCoordinates: false,
+      controlScheme: 'TAP_TO_MOVE'
   });
 
   const [stats, setStats] = useState<PlayerStats>({
@@ -70,6 +73,7 @@ const App: React.FC = () => {
   const [showChangelog, setShowChangelog] = useState(false);
   const [showWiki, setShowWiki] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
+  const [showDevTools, setShowDevTools] = useState(false);
 
   // --- WORLD MANAGEMENT ---
 
@@ -233,6 +237,7 @@ const App: React.FC = () => {
         if (showWiki) { setShowWiki(false); return; }
         if (showChangelog) { setShowChangelog(false); return; }
         if (showOptions) { setShowOptions(false); return; }
+        if (showDevTools) { setShowDevTools(false); return; }
 
         if (gameState === GameState.PLAYING) {
             // Optional: Pause logic or open options
@@ -242,13 +247,26 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [gameState, showWiki, showChangelog, showOptions]);
+  }, [gameState, showWiki, showChangelog, showOptions, showDevTools]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-white text-black">
       
       {/* 1. Loading Screen Overlay */}
       {isLoading && <LoadingScreen />}
+
+      {/* Start Screen */}
+      {gameState === GameState.START && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black text-white">
+          <h1 className="text-6xl font-bold mb-8">CURSOR CRAFT</h1>
+          <button 
+            onClick={() => setGameState(GameState.MENU)}
+            className="px-8 py-4 bg-white text-black font-bold text-xl rounded hover:bg-gray-200"
+          >
+            Start Game
+          </button>
+        </div>
+      )}
 
       {/* 2. The Game World (Canvas) */}
       <GameCanvas 
@@ -350,7 +368,7 @@ const App: React.FC = () => {
       )}
 
       {/* 6. Main Menu */}
-      {gameState === GameState.MENU && !showChangelog && !showWiki && !showOptions && (
+      {gameState === GameState.MENU && !showChangelog && !showWiki && !showOptions && !showDevTools && (
         <div 
           className="absolute inset-0 z-50 flex flex-col items-center justify-center"
           style={{ 
@@ -387,6 +405,12 @@ const App: React.FC = () => {
             >
               Multiplayer
             </button>
+            <button 
+              onClick={() => setShowDevTools(true)}
+              className="mc-btn w-full py-2 text-base font-bold text-blue-800 bg-blue-200"
+            >
+              Dev Tools (Mods/Textures)
+            </button>
             
             <div className="flex gap-2 w-full mt-2">
                 <button 
@@ -413,6 +437,9 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* Dev Tools Overlay */}
+      {showDevTools && <DevTools onClose={() => setShowDevTools(false)} />}
+
       {/* Game Over Screen */}
       {gameState === GameState.GAME_OVER && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-red-900/60 backdrop-blur-sm">
@@ -427,13 +454,13 @@ const App: React.FC = () => {
               }}
               className="mc-btn w-full py-2 text-base font-bold"
             >
-              Respawn
+              Restart
             </button>
              <button 
               onClick={handleSaveAndQuit} // Quit to menu safely
               className="mc-btn w-full py-2 text-base font-bold"
             >
-              Title Screen
+              Main Menu
             </button>
           </div>
         </div>

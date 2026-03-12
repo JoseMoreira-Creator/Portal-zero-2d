@@ -3,7 +3,7 @@ import React from 'react';
 import { GAME_BALANCE, BLOCK_SIZE, MAX_STACK, WORLD_WIDTH, WORLD_HEIGHT, MINING_AREA_WIDTH, MINING_AREA_HEIGHT } from '../constants';
 import { COLORS } from '../assets/art';
 import { Entity, GameState, ItemType, MobType, PlayerStats, CursorState, Vector2, WorldState, StoredDimensionData, WaterBody } from '../types';
-import { getAngle, getDistance, getVector, normalizeVector } from '../utils/math';
+import { getAngle, getDistance, getVector, normalizeVector, scaleVector } from '../utils/math';
 import { playSound } from '../utils/audio';
 import { updateHostileMob } from './mobs/hostile';
 import { updatePassiveMob } from './mobs/passive';
@@ -215,13 +215,14 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
       }
   }
 
-  const inventory = Array.from({ length: 4 }, () => ({ item: ItemType.EMPTY, count: 0 }));
+  const inventory = Array.from({ length: 2 }, () => ({ item: ItemType.EMPTY, count: 0 }));
 
   return {
     dimension: 'SURFACE',
     inactiveWorldData: {},
     projectiles: [],
     particles: [],
+    hitMarkers: [],
     entities,
     items: [],
     waterBodies,
@@ -399,6 +400,41 @@ const spawnMob = (world: WorldState, playerPos: Vector2) => {
     // World clamp
     x = Math.max(50, Math.min(WORLD_WIDTH - 50, x));
     y = Math.max(50, Math.min(WORLD_HEIGHT - 50, y));
+
+    // Prevent spawning on the initial island (Radius 300, Center 400,400)
+    const ISLAND_CENTER = { x: 400, y: 400 };
+    const ISLAND_RADIUS = 300;
+    if (getDistance({x, y}, ISLAND_CENTER) < ISLAND_RADIUS + 50) {
+        return; 
+    }
+
+    // Slime Spawn Restriction: Slimes only spawn in water
+    if (type === MobType.SLIME) {
+        let inWater = false;
+        for (const lake of world.waterBodies) {
+            for (const circle of lake.circles) {
+                if (getDistance({x, y}, circle) < circle.radius) {
+                    inWater = true;
+                    break;
+                }
+            }
+            if (inWater) break;
+        }
+        if (!inWater) return; // Slimes must spawn in water
+    } else {
+        // Other mobs must spawn on land (not water)
+        let inWater = false;
+        for (const lake of world.waterBodies) {
+            for (const circle of lake.circles) {
+                if (getDistance({x, y}, circle) < circle.radius) {
+                    inWater = true;
+                    break;
+                }
+            }
+            if (inWater) break;
+        }
+        if (inWater) return; // Land mobs cannot spawn in water
+    }
 
     world.entities.push({
         id: Math.random().toString(),
@@ -594,8 +630,22 @@ export const updateGame = (
     const mag = Math.sqrt(dx*dx + dy*dy);
     let speed = c.parryActive ? GAME_BALANCE.PLAYER_SPEED * 0.3 : GAME_BALANCE.PLAYER_SPEED;
     
-    // Slow down in water
-    if (inWater) speed = GAME_BALANCE.PLAYER_WATER_SPEED;
+    // Check boat
+    const heldItem = c.inventory[c.hotbarSelectedIndex].item;
+    const isHoldingBoat = heldItem === ItemType.BOAT;
+
+    // Slow down in water unless boat
+    if (inWater) {
+        if (isHoldingBoat) {
+            speed = GAME_BALANCE.PLAYER_SPEED * 1.5;
+        } else {
+            speed = GAME_BALANCE.PLAYER_WATER_SPEED;
+        }
+    } else {
+        if (isHoldingBoat) {
+            speed = GAME_BALANCE.PLAYER_SPEED * 0.5; // Carrying boat on land is slow
+        }
+    }
     
     // Normalize speed
     const moveX = (dx / mag) * speed;
@@ -653,6 +703,16 @@ export const updateGame = (
     if (c.pos.y > currentHeight - 10) c.pos.y = currentHeight - 10;
   }
 
+  // Update Hit Markers
+  if (w.hitMarkers) {
+      for (let i = w.hitMarkers.length - 1; i >= 0; i--) {
+          w.hitMarkers[i].life--;
+          if (w.hitMarkers[i].life <= 0) {
+              w.hitMarkers.splice(i, 1);
+          }
+      }
+  }
+
   // NOTE: We do NOT need to update CursorWorldPos again here.
   // The renderer draws the crosshair based on screen coordinates, which don't change 
   // just because the player moved. The next frame's start will re-calc world pos for logic.
@@ -669,6 +729,13 @@ export const updateGame = (
       }
   }
 
+  // PARRY LOGIC
+  if (c.isRightDown && c.parryCooldown <= 0 && !c.isInventoryOpen) {
+      c.parryActive = true;
+  } else {
+      c.parryActive = false;
+  }
+
   if (c.parryCooldown > 0) c.parryCooldown--;
   if (c.parryActive) {
       c.parryTimer++;
@@ -681,6 +748,126 @@ export const updateGame = (
   if (c.meleeCooldown > 0) c.meleeCooldown--;
   if (c.bowCooldown > 0) c.bowCooldown--;
   if (c.terraCooldown > 0) c.terraCooldown--;
+  if (c.healCooldown > 0) c.healCooldown--;
+
+  // MANUAL ATTACK / USE ITEM LOGIC
+  if (c.isLeftDown && !c.isInventoryOpen && !c.parryActive) {
+      // Cancel Auto Action
+      c.autoAction = 'NONE';
+      c.autoTargetId = null;
+      c.targetPos = null;
+
+      const activeSlot = c.inventory[c.hotbarSelectedIndex];
+      const activeItem = activeSlot.item;
+
+      // 1. Check Cooldowns
+      if (c.meleeCooldown <= 0 && c.bowCooldown <= 0 && c.terraCooldown <= 0 && c.healCooldown <= 0) {
+          
+          // --- CONSUMABLES ---
+          if (activeItem === ItemType.POTION || activeItem === ItemType.STEAK || activeItem === ItemType.RAW_BEEF) {
+              // Eat/Drink
+              playSound('eat');
+              c.healCooldown = 60;
+              let heal = 20;
+              if (activeItem === ItemType.RAW_BEEF) heal = 10;
+              if (activeItem === ItemType.POTION) heal = 50;
+              
+              setStats(prev => ({
+                  ...prev,
+                  hp: Math.min(prev.maxHp, prev.hp + heal),
+                  hunger: Math.min(prev.maxHunger, prev.hunger + 20)
+              }));
+              
+              activeSlot.count--;
+              if (activeSlot.count <= 0) activeSlot.item = ItemType.EMPTY;
+          }
+          // --- PLACEABLES ---
+          else if ([ItemType.TORCH, ItemType.CRAFTING_TABLE, ItemType.FURNACE, ItemType.ANVIL, ItemType.DOOR, ItemType.LADDER, ItemType.WOOD, ItemType.PLANKS].includes(activeItem)) {
+               // Place Block Logic
+               // Check if valid placement (distance < 100, no collision)
+               const dist = getDistance(c.pos, c.mousePos);
+               if (dist < 100) {
+                   let canPlace = true;
+                   // Check collision with existing entities
+                   for (const ent of w.entities) {
+                       if (getDistance(c.mousePos, ent.pos) < ent.size + 10) {
+                           canPlace = false;
+                           break;
+                       }
+                   }
+                   // Check collision with player
+                   if (getDistance(c.mousePos, c.pos) < 20) canPlace = false;
+
+                   if (canPlace) {
+                       playSound('place');
+                       w.entities.push({
+                           id: Math.random().toString(),
+                           type: activeItem as any,
+                           pos: { ...c.mousePos },
+                           vel: { x: 0, y: 0 },
+                           hp: 100,
+                           maxHp: 100,
+                           state: 'IDLE',
+                           attackTimer: 0,
+                           size: activeItem === ItemType.TORCH ? 5 : 16,
+                           color: '#fff',
+                           faceDirection: 1,
+                           isOpen: false // For doors
+                       });
+                       activeSlot.count--;
+                       if (activeSlot.count <= 0) activeSlot.item = ItemType.EMPTY;
+                       c.meleeCooldown = 20; // Small cooldown to prevent spam
+                   }
+               }
+          }
+          // --- BOW ---
+          else if (activeItem === ItemType.BOW) {
+              // Shoot Arrow
+              playSound('shoot');
+              w.projectiles.push({
+                  id: Math.random().toString(),
+                  pos: { ...c.pos },
+                  vel: scaleVector(normalizeVector(getVector(c.pos, c.mousePos)), 15),
+                  radius: 3,
+                  isEnemy: false,
+                  damage: 20,
+                  color: '#fff',
+                  type: 'ARROW'
+              });
+              c.bowCooldown = 40;
+          }
+          // --- TERRA BLADE ---
+          else if (activeItem === ItemType.TERRA_BLADE) {
+               playSound('swing');
+               c.meleeActive = true;
+               c.meleeTimer = GAME_BALANCE.MELEE_DURATION_FRAMES;
+               c.meleeCooldown = GAME_BALANCE.MELEE_COOLDOWN_FRAMES;
+               c.meleeAngle = Math.atan2(c.mousePos.y - c.pos.y, c.mousePos.x - c.pos.x);
+               c.terraCooldown = 60;
+               
+               // Shoot Projectile
+               w.projectiles.push({
+                  id: Math.random().toString(),
+                  pos: { ...c.pos },
+                  vel: scaleVector(normalizeVector(getVector(c.pos, c.mousePos)), 12),
+                  radius: 8,
+                  isEnemy: false,
+                  damage: 30,
+                  color: '#00E676', // Green
+                  type: 'ARROW' // Re-use arrow type for now
+              });
+          }
+          // --- MELEE / DEFAULT ---
+          else {
+              // Swing Sword / Tool / Hand
+              playSound('swing');
+              c.meleeActive = true;
+              c.meleeTimer = GAME_BALANCE.MELEE_DURATION_FRAMES;
+              c.meleeCooldown = GAME_BALANCE.MELEE_COOLDOWN_FRAMES;
+              c.meleeAngle = Math.atan2(c.mousePos.y - c.pos.y, c.mousePos.x - c.pos.x);
+          }
+      }
+  }
 
   // Update Projectiles (Arrows & Thrown Torches)
   // If Client, we assume projectiles are simulated on Host and synced. 
@@ -795,6 +982,15 @@ export const updateGame = (
              
              if (angleDiff < Math.PI / 3) {
                  
+                 // Spawn Hit Marker
+                 const hitX = c.pos.x + Math.cos(angleToEnt) * (ent.size + 10);
+                 const hitY = c.pos.y + Math.sin(angleToEnt) * (ent.size + 10);
+                 w.hitMarkers.push({
+                     id: Math.random().toString(),
+                     pos: { x: hitX, y: hitY },
+                     life: 10
+                 });
+
                  const stoneTypes = ['ROCK', 'COAL_ORE', 'IRON_ORE', ItemType.FURNACE, ItemType.ANVIL];
                  const woodTypes = ['TREE', 'BIRCH_TREE', ItemType.WOOD, ItemType.PLANKS, 'CRAFTING_TABLE', ItemType.DOOR, ItemType.LADDER];
 
@@ -928,7 +1124,7 @@ export const updateGame = (
           if (isHostile) {
               updateHostileMob(ent, c.pos, w, setStats);
           } else {
-              updatePassiveMob(ent);
+              updatePassiveMob(ent, w);
           }
       }
   }
@@ -963,6 +1159,12 @@ export const updateGame = (
     part.pos.y += part.vel.y;
     part.life--;
     if (part.life <= 0) w.particles.splice(i, 1);
+  }
+
+  // Update Hit Markers
+  for (let i = w.hitMarkers.length - 1; i >= 0; i--) {
+    w.hitMarkers[i].life--;
+    if (w.hitMarkers[i].life <= 0) w.hitMarkers.splice(i, 1);
   }
 
   if (stats.hp <= 0) {

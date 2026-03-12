@@ -80,12 +80,22 @@ export const useMultiplayer = ({ gameState, world, setChatMessages }: UseMultipl
         });
     };
 
+    const initializingRef = useRef(false);
+
     // --- HOST LOGIC ---
     const hostGame = async () => {
+        if (initializingRef.current || status === 'CONNECTED' || status === 'CONNECTING') {
+            console.log("Already initializing or connected, skipping hostGame");
+            return peerId || "";
+        }
+        
+        initializingRef.current = true;
         setStatus('CONNECTING');
+        
         try {
             const peer = await initializePeer();
             setStatus('CONNECTED');
+            initializingRef.current = false;
             
             if (world.current) {
                 world.current.isMultiplayer = true;
@@ -94,6 +104,7 @@ export const useMultiplayer = ({ gameState, world, setChatMessages }: UseMultipl
             }
 
             peer.on('connection', (conn: any) => {
+                console.log("New connection from:", conn.peer);
                 connectionsRef.current.push(conn);
                 
                 conn.on('data', (data: any) => {
@@ -101,44 +112,63 @@ export const useMultiplayer = ({ gameState, world, setChatMessages }: UseMultipl
                 });
 
                 conn.on('close', () => {
+                    console.log("Connection closed:", conn.peer);
                     connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
                     if (world.current) {
-                        delete world.current.remotePlayers[conn.peer];
+                        if (world.current.remotePlayers) {
+                            delete world.current.remotePlayers[conn.peer];
+                        }
                         setChatMessages(prev => [...prev, { id: Math.random().toString(), text: `Player left`, sender: 'SYSTEM', timestamp: Date.now() }]);
                     }
                 });
                 
                 // Send Initial World State (Simplified)
-                conn.send({
-                    type: 'INIT',
-                    world: {
-                        entities: world.current.entities,
-                        items: world.current.items,
-                        timeOfDay: world.current.timeOfDay,
-                        dimension: world.current.dimension,
-                        waterBodies: world.current.waterBodies
-                    }
-                });
+                if (world.current) {
+                    conn.send({
+                        type: 'INIT',
+                        world: {
+                            entities: world.current.entities,
+                            items: world.current.items,
+                            timeOfDay: world.current.timeOfDay,
+                            dimension: world.current.dimension,
+                            waterBodies: world.current.waterBodies
+                        }
+                    });
+                }
 
                 setChatMessages(prev => [...prev, { id: Math.random().toString(), text: `Player joined!`, sender: 'SYSTEM', timestamp: Date.now() }]);
             });
             
             return peer.id;
         } catch (e) {
+            console.error("Host Game Error:", e);
             setStatus('ERROR');
+            initializingRef.current = false;
             throw e;
         }
     };
 
     // --- CLIENT LOGIC ---
     const joinGame = async (hostId: string) => {
+        if (initializingRef.current || status === 'CONNECTED' || status === 'CONNECTING') {
+             console.log("Already initializing or connected, skipping joinGame");
+             return;
+        }
+
+        initializingRef.current = true;
         setStatus('CONNECTING');
+        
         try {
             const peer = await initializePeer();
-            const conn = peer.connect(hostId);
+            console.log("Peer initialized, connecting to:", hostId);
+            const conn = peer.connect(hostId, {
+                reliable: true
+            });
             
             conn.on('open', () => {
+                console.log("Connected to Host:", hostId);
                 setStatus('CONNECTED');
+                initializingRef.current = false;
                 hostConnRef.current = conn;
                 
                 if (world.current) {
@@ -146,6 +176,7 @@ export const useMultiplayer = ({ gameState, world, setChatMessages }: UseMultipl
                     world.current.isHost = false;
                     world.current.myId = peer.id;
                 }
+                setChatMessages(prev => [...prev, { id: Math.random().toString(), text: `Connected to Host!`, sender: 'SYSTEM', timestamp: Date.now() }]);
             });
 
             conn.on('data', (data: any) => {
@@ -153,17 +184,22 @@ export const useMultiplayer = ({ gameState, world, setChatMessages }: UseMultipl
             });
             
             conn.on('close', () => {
+                console.log("Disconnected from Host");
                 setStatus('DISCONNECTED');
                 alert("Disconnected from Host");
+                initializingRef.current = false;
             });
 
             conn.on('error', (err: any) => {
                  console.error("Connection Error", err);
                  setStatus('ERROR');
+                 initializingRef.current = false;
             });
 
         } catch (e) {
+            console.error("Join Game Error:", e);
             setStatus('ERROR');
+            initializingRef.current = false;
             throw e;
         }
     };

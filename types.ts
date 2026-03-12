@@ -2,6 +2,7 @@
 export type Vector2 = { x: number; y: number };
 
 export enum GameState {
+  START = 'START',
   MENU = 'MENU',
   WORLD_SELECT = 'WORLD_SELECT',
   MULTIPLAYER_MENU = 'MULTIPLAYER_MENU', // Novo estado
@@ -13,6 +14,7 @@ export interface GameSettings {
   animations: boolean;
   zoom: number;
   showCoordinates: boolean;
+  controlScheme: 'TAP_TO_MOVE' | 'JOYSTICK';
 }
 
 export interface Attributes {
@@ -58,6 +60,7 @@ export enum ItemType {
   VINE = 'VINE', // Renamed from STRING
   SLIME_BALL = 'SLIME_BALL',
   BACKPACK = 'BACKPACK',
+  BOAT = 'BOAT',
   
   // Food
   RAW_BEEF = 'RAW_BEEF',
@@ -235,12 +238,19 @@ export interface RemotePlayer {
     maxHp: number;
 }
 
+export interface HitMarker {
+  id: string;
+  pos: Vector2;
+  life: number;
+}
+
 export interface WorldState {
   dimension: 'SURFACE' | 'UNDERGROUND';
   inactiveWorldData: Partial<Record<'SURFACE' | 'UNDERGROUND', StoredDimensionData>>;
   
   projectiles: Projectile[];
   particles: Particle[];
+  hitMarkers: HitMarker[]; // Visual hit feedback
   entities: Entity[];
   items: { id: string, type: ItemType, pos: Vector2, life: number }[]; 
   waterBodies: WaterBody[];

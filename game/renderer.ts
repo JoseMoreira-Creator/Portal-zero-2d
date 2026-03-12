@@ -208,8 +208,33 @@ export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings }: 
   // 4. Draw Particles
   particles.forEach(p => {
     ctx.fillStyle = p.color;
-    ctx.fillRect(p.pos.x, p.pos.y, p.size, p.size);
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.beginPath();
+    ctx.arc(p.pos.x, p.pos.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
   });
+
+  // 4.1 Render Hit Markers (New)
+  if (world.hitMarkers) {
+      world.hitMarkers.forEach(h => {
+          ctx.save();
+          ctx.translate(h.pos.x, h.pos.y);
+          ctx.globalAlpha = h.life / 10; // Fade out
+          
+          // Draw "Bang" or "Slash"
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          const size = 10;
+          // Star shape
+          ctx.moveTo(-size, -size); ctx.lineTo(size, size);
+          ctx.moveTo(size, -size); ctx.lineTo(-size, size);
+          ctx.stroke();
+          
+          ctx.restore();
+      });
+  }
 
   // 5. Draw Projectiles
   projectiles.forEach(p => {
@@ -234,6 +259,22 @@ export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings }: 
       }
       ctx.restore();
   });
+
+  // 6.5 Crosshair
+  ctx.save();
+  ctx.translate(cursor.mousePos.x, cursor.mousePos.y);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, 8, 0, Math.PI * 2); // 16x16 circle (radius 8)
+  ctx.stroke();
+  
+  // Center dot
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.beginPath();
+  ctx.arc(0, 0, 1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 
   // 7. Day/Night Overlay
   let alpha = 0;
@@ -668,7 +709,13 @@ const renderAdventurer = (ctx: CanvasRenderingContext2D, cursor: CursorState, fr
     const dx = cursor.mousePos.x - cursor.pos.x;
     const dy = cursor.mousePos.y - cursor.pos.y;
     let angle = Math.atan2(dy, dx);
-    if (cursor.faceDirection === -1) angle = Math.PI - angle;
+    
+    // When facing left, we need to adjust the angle because we are scaling X by -1
+    // The atan2 result is correct for world space, but we are drawing in a flipped local space
+    if (cursor.faceDirection === -1) {
+        // Mirror the angle horizontally
+        angle = Math.atan2(dy, -dx);
+    }
 
     if (cursor.meleeActive) {
          const progress = 1 - (cursor.meleeTimer / GAME_BALANCE.MELEE_DURATION_FRAMES);
@@ -791,6 +838,20 @@ const renderIcon = (ctx: CanvasRenderingContext2D, type: ItemType, size: number)
     else if (type === ItemType.VINE) {
         ctx.strokeStyle = '#ECEFF1'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(-6, -6); ctx.quadraticCurveTo(5, 0, -6, 6); ctx.stroke();
+    }
+    else if (type === ItemType.BOAT) {
+        ctx.fillStyle = '#8D6E63'; // Wood
+        ctx.beginPath();
+        ctx.moveTo(-s, 0);
+        ctx.lineTo(s, 0);
+        ctx.lineTo(s-2, s-2);
+        ctx.lineTo(-s+2, s-2);
+        ctx.fill();
+        ctx.fillStyle = '#5D4037'; // Rim
+        ctx.fillRect(-s+2, -2, size-4, 2);
+        // Oar
+        ctx.strokeStyle = '#A1887F'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(s, -s); ctx.stroke();
     }
     else if (type === ItemType.RAW_BEEF || type === ItemType.STEAK) {
         const cooked = type === ItemType.STEAK;

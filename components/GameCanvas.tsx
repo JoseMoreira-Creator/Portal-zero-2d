@@ -14,6 +14,8 @@ import { useMultiplayer } from '../hooks/useMultiplayer';
 import { getDistance, normalizeVector, getVector, scaleVector } from '../utils/math';
 import { ITEM_ICONS } from '../assets/art';
 
+import { JoystickControls } from './UI/JoystickControls';
+
 const ContextMenu: React.FC<{ 
     x: number, 
     y: number, 
@@ -100,6 +102,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         if (!world.current.cameraPos) {
             world.current.cameraPos = { ...world.current.cursor.pos };
         }
+        if (!world.current.hitMarkers) {
+            world.current.hitMarkers = [];
+        }
+        if (!world.current.entities) world.current.entities = [];
+        if (!world.current.items) world.current.items = [];
+        if (!world.current.projectiles) world.current.projectiles = [];
+        if (!world.current.particles) world.current.particles = [];
     } else if (!world.current) {
         // Fallback for safety
         world.current = createInitialWorld(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -164,6 +173,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const dragStartPos = useRef({ x: 0, y: 0 }); // Screen coords
   const cameraStartPos = useRef({ x: 0, y: 0 }); // World coords
   const playerDragCurrentPos = useRef<{ x: number, y: number } | null>(null); // World coords
+  const lastClickTime = useRef(0);
 
   // MULTIPLAYER HOOK
   const mpControls = useMultiplayer({ gameState, world, setChatMessages });
@@ -176,14 +186,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
       if (gameState === GameState.PLAYING && multiplayerMode === 'HOST' && !world.current.isMultiplayer) {
           mpControls.hostGame().then(id => {
-              setChatMessages(prev => [...prev, { id: 'sys', text: `Hosting Game! ID copied to clipboard.`, sender: 'SYSTEM', timestamp: Date.now() }]);
-              // Copy to clipboard for easy sharing
-              navigator.clipboard.writeText(id);
+              if (id) {
+                  setChatMessages(prev => [...prev, { id: 'sys', text: `Hosting Game! ID copied to clipboard.`, sender: 'SYSTEM', timestamp: Date.now() }]);
+                  // Copy to clipboard for easy sharing
+                  navigator.clipboard.writeText(id);
+              }
           }).catch(err => alert("Failed to host: " + err));
       } else if (gameState === GameState.PLAYING && multiplayerMode === 'JOIN' && !world.current.isMultiplayer) {
-          mpControls.joinGame(joinId).then(() => {
-              setChatMessages(prev => [...prev, { id: 'sys', text: `Connected to Host!`, sender: 'SYSTEM', timestamp: Date.now() }]);
-          }).catch(err => {
+          mpControls.joinGame(joinId).catch(err => {
               alert("Failed to join: " + err);
               setGameState(GameState.MULTIPLAYER_MENU);
           });
@@ -282,7 +292,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       },
       isChatOpen: chatOpen,
       currentZoom: settings.zoom,
-      onZoomChange: (z) => setSettings(prev => ({ ...prev, zoom: z }))
+      onZoomChange: (z) => setSettings(prev => ({ ...prev, zoom: z })),
+      controlScheme: settings.controlScheme
   });
 
   // CHAT KEYBOARD LISTENER
@@ -306,6 +317,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       return () => window.removeEventListener('keydown', handleChatKey);
   }, [gameState, chatOpen]);
 
+  const holdTimeoutRef = useRef<any>(null);
+
   // NEW INPUT HANDLING
   useEffect(() => {
       const screenToWorld = (sx: number, sy: number) => {
@@ -322,59 +335,73 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const handleDown = (clientX: number, clientY: number) => {
           if (gameState !== GameState.PLAYING) return;
           if (playerMenuOpen || contextMenu || showInventory) return;
+          if (settings.controlScheme === 'JOYSTICK') return;
 
           dragStartPos.current = { x: clientX, y: clientY };
-          isPanning.current = true;
-          cameraStartPos.current = { ...world.current.cameraPos };
+          lastClickTime.current = Date.now();
+          
+          holdTimeoutRef.current = setTimeout(() => {
+              if (world.current) {
+                  world.current.cursor.isLeftDown = true;
+                  world.current.cursor.mousePos = screenToWorld(clientX, clientY);
+              }
+          }, 200);
       };
 
       const handleMove = (clientX: number, clientY: number) => {
           if (gameState !== GameState.PLAYING) return;
+          if (settings.controlScheme === 'JOYSTICK') return;
 
-          if (isPanning.current) {
-              const dx = clientX - dragStartPos.current.x;
-              const dy = clientY - dragStartPos.current.y;
-              const zoom = world.current.zoom;
-              
-              world.current.cameraPos = {
-                  x: cameraStartPos.current.x - dx / zoom,
-                  y: cameraStartPos.current.y - dy / zoom
-              };
+          const dist = Math.hypot(clientX - dragStartPos.current.x, clientY - dragStartPos.current.y);
+          
+          if (dist > 10 && holdTimeoutRef.current) {
+              clearTimeout(holdTimeoutRef.current);
+              holdTimeoutRef.current = null;
+              if (world.current) {
+                  world.current.cursor.isLeftDown = true;
+              }
+          }
+          
+          if (world.current && world.current.cursor.isLeftDown) {
+              world.current.cursor.mousePos = screenToWorld(clientX, clientY);
           }
       };
 
       const handleUp = (clientX: number, clientY: number) => {
           if (gameState !== GameState.PLAYING) return;
-          
-          const dist = Math.hypot(clientX - dragStartPos.current.x, clientY - dragStartPos.current.y);
+          if (settings.controlScheme === 'JOYSTICK') return;
 
-          if (isPanning.current && dist < 5) {
-              // Click Logic (if not dragged much)
-              const worldPos = screenToWorld(clientX, clientY);
-              
-              // Check for entity click
-              let clickedEntity = null;
-              // Iterate backwards to prioritize top entities
-              for (let i = world.current.entities.length - 1; i >= 0; i--) {
-                  const ent = world.current.entities[i];
-                  // Simple circle collision check for click
-                  if (getDistance(worldPos, ent.pos) < ent.size + 10) {
-                      clickedEntity = ent;
-                      break;
-                  }
-              }
-
-              if (clickedEntity) {
-                  setContextMenu({ x: clientX, y: clientY, entityId: clickedEntity.id });
-              } else {
-                  // Move to position
-                  world.current.cursor.targetPos = { ...worldPos };
-                  world.current.cursor.autoAction = 'NONE';
-                  world.current.cursor.autoTargetId = null;
-              }
+          if (holdTimeoutRef.current) {
+              clearTimeout(holdTimeoutRef.current);
+              holdTimeoutRef.current = null;
           }
 
-          isPanning.current = false;
+          const now = Date.now();
+          const dist = Math.hypot(clientX - dragStartPos.current.x, clientY - dragStartPos.current.y);
+
+          if (world.current) {
+              world.current.cursor.isLeftDown = false;
+              
+              if (now - lastClickTime.current < 200 && dist < 10) {
+                  const worldPos = screenToWorld(clientX, clientY);
+                  
+                  let clickedEntity = null;
+                  for (const ent of world.current.entities) {
+                      if (getDistance(worldPos, ent.pos) < 30) {
+                          clickedEntity = ent;
+                          break;
+                      }
+                  }
+
+                  if (clickedEntity) {
+                      setContextMenu({ x: clientX, y: clientY, entityId: clickedEntity.id });
+                  } else {
+                      world.current.cursor.targetPos = { ...worldPos };
+                      world.current.cursor.autoAction = 'NONE';
+                      world.current.cursor.autoTargetId = null;
+                  }
+              }
+          }
       };
 
       const onMouseDown = (e: MouseEvent) => {
@@ -408,6 +435,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       window.addEventListener('touchend', onTouchEnd);
 
       return () => {
+          if (holdTimeoutRef.current) clearTimeout(holdTimeoutRef.current);
           window.removeEventListener('mousedown', onMouseDown);
           window.removeEventListener('mousemove', onMouseMove);
           window.removeEventListener('mouseup', onMouseUp);
@@ -569,7 +597,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const loop = () => {
       if (gameState === GameState.PLAYING && world.current) {
         // Update Logic
-        // Smooth camera follow removed
+        // Smooth camera follow
+        const targetCamX = world.current.cursor.pos.x;
+        const targetCamY = world.current.cursor.pos.y;
+        world.current.cameraPos.x += (targetCamX - world.current.cameraPos.x) * 0.1;
+        world.current.cameraPos.y += (targetCamY - world.current.cameraPos.y) * 0.1;
 
         updateGame(
           world.current, 
@@ -752,6 +784,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                   <span className="text-xs opacity-75">(Click to Copy)</span>
               </div>
           </div>
+      )}
+
+      {/* JOYSTICK CONTROLS */}
+      {settings.controlScheme === 'JOYSTICK' && gameState === GameState.PLAYING && !playerMenuOpen && !chatOpen && (
+          <JoystickControls world={world} />
       )}
     </>
   );

@@ -12,7 +12,7 @@ interface HotbarProps {
 export const Hotbar: React.FC<HotbarProps> = ({ inventory, selectedIndex, onOpenInventory, onSelectSlot }) => {
   return (
     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-1 z-40">
-      {inventory.slice(0, 4).map((slot, i) => (
+      {inventory.slice(0, 2).map((slot, i) => (
         <div 
           key={i}
           onClick={(e) => { e.stopPropagation(); onSelectSlot(i); }}

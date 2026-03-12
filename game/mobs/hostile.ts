@@ -201,4 +201,23 @@ export const updateHostileMob = (ent: Entity, playerPos: Vector2, world: WorldSt
     }
 
     if (ent.attackTimer > 0) ent.attackTimer--;
+
+    // Water Collision (Avoid Water)
+    if (world.waterBodies) {
+        for (const lake of world.waterBodies) {
+            for (const circle of lake.circles) {
+                const dist = getDistance(ent.pos, circle);
+                if (dist < circle.radius) {
+                    // Inside water, push out
+                    const pushVec = normalizeVector(getVector(circle, ent.pos));
+                    if (pushVec.x === 0 && pushVec.y === 0) {
+                        pushVec.x = 1; 
+                    }
+                    const overlap = circle.radius - dist + 2; // +2 buffer
+                    ent.pos.x += pushVec.x * overlap;
+                    ent.pos.y += pushVec.y * overlap;
+                }
+            }
+        }
+    }
 };

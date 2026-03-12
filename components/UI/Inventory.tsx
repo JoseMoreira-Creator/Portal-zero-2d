@@ -631,8 +631,13 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
             {/* Inventory Slots */}
             <div className="p-0">
                 <div className="flex gap-1 pt-2 border-t-2 border-[#888]">
-                    {cursor.inventory.slice(0, 4).map((slot, i) => renderSlot(slot, i))}
+                    {cursor.inventory.slice(0, 2).map((slot, i) => renderSlot(slot, i))}
                 </div>
+                {cursor.isBackpackEquipped && cursor.inventory.length > 2 && (
+                    <div className="grid grid-cols-9 gap-1 mt-4">
+                        {cursor.inventory.slice(2).map((slot, i) => renderSlot(slot, i + 2))}
+                    </div>
+                )}
             </div>
         </div>
 
