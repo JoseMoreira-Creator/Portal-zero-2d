@@ -45,6 +45,10 @@ export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZ
     if (key === 'd') c.keys.d = true;
 
     if (key === 'q') c.isRightDown = true;
+    
+    if (key === 'j') c.isMeleeKeyDown = true;
+    if (key === 'k') c.isBowKeyDown = true;
+    if (key === 'l') c.isShieldKeyDown = true;
 
     if (key === 'e') {
         c.isInventoryOpen = !c.isInventoryOpen;
@@ -87,6 +91,9 @@ export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZ
     if (key === 's') world.current.cursor.keys.s = false;
     if (key === 'd') world.current.cursor.keys.d = false;
     if (key === 'q') world.current.cursor.isRightDown = false;
+    if (key === 'j') world.current.cursor.isMeleeKeyDown = false;
+    if (key === 'k') world.current.cursor.isBowKeyDown = false;
+    if (key === 'l') world.current.cursor.isShieldKeyDown = false;
   }, [world]);
 
   const handleMouseDown = useCallback((e: MouseEvent) => {

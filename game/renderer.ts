@@ -274,6 +274,23 @@ export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings }: 
   ctx.beginPath();
   ctx.arc(0, 0, 1, 0, Math.PI * 2);
   ctx.fill();
+
+  // Cooldown Indicators
+  const drawCooldownArc = (cooldown: number, maxCooldown: number, color: string, radius: number) => {
+      if (cooldown > 0) {
+          const progress = cooldown / maxCooldown;
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, radius, -Math.PI / 2, (-Math.PI / 2) + (Math.PI * 2 * progress));
+          ctx.stroke();
+      }
+  };
+
+  drawCooldownArc(cursor.meleeCooldown, GAME_BALANCE.MELEE_COOLDOWN_FRAMES, 'rgba(255, 100, 100, 0.8)', 12);
+  drawCooldownArc(cursor.bowCooldown, GAME_BALANCE.SLINGSHOT_COOLDOWN_FRAMES, 'rgba(100, 255, 100, 0.8)', 16);
+  drawCooldownArc(cursor.parryCooldown, GAME_BALANCE.PARRY_COOLDOWN_FRAMES, 'rgba(100, 200, 255, 0.8)', 20);
+
   ctx.restore();
 
   // 7. Day/Night Overlay
@@ -722,6 +739,26 @@ const renderAdventurer = (ctx: CanvasRenderingContext2D, cursor: CursorState, fr
          angle += (progress * Math.PI) - (Math.PI / 2);
     }
     
+    // Draw Parry Shield
+    if (cursor.parryActive) {
+        ctx.save();
+        ctx.translate(0, -12);
+        ctx.strokeStyle = cursor.parryTimer <= 15 ? 'rgba(255, 255, 255, 0.9)' : 'rgba(100, 200, 255, 0.5)';
+        ctx.lineWidth = cursor.parryTimer <= 15 ? 4 : 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 20, angle - Math.PI/3, angle + Math.PI/3);
+        ctx.stroke();
+        
+        if (cursor.parryTimer <= 15) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 20, angle - Math.PI/3, angle + Math.PI/3);
+            ctx.lineTo(0,0);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
     ctx.save();
     ctx.translate(0, -12);
     ctx.rotate(angle);

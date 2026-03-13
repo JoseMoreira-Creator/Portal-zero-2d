@@ -23,7 +23,7 @@ export const JoystickControls: React.FC<JoystickControlsProps> = ({ world }) => 
 
     const handleDPadStart = (key: string) => {
         setActiveKeys(prev => {
-            const next = new Set(prev);
+            const next = new Set<string>(prev);
             next.add(key);
             updateWorldKeys(next);
             return next;
@@ -32,7 +32,7 @@ export const JoystickControls: React.FC<JoystickControlsProps> = ({ world }) => 
 
     const handleDPadEnd = (key: string) => {
         setActiveKeys(prev => {
-            const next = new Set(prev);
+            const next = new Set<string>(prev);
             next.delete(key);
             updateWorldKeys(next);
             return next;

@@ -38,6 +38,7 @@ export enum ItemType {
   PICKAXE_WOOD = 'PICKAXE_WOOD',
   PICKAXE_STONE = 'PICKAXE_STONE',
   BOW = 'BOW',
+  SLINGSHOT = 'SLINGSHOT',
   TERRA_BLADE = 'TERRA_BLADE', 
   SHIELD = 'SHIELD',
   
@@ -170,6 +171,10 @@ export interface CursorState {
   isLeftDown: boolean;
   isRightDown: boolean;
   
+  isMeleeKeyDown: boolean;
+  isBowKeyDown: boolean;
+  isShieldKeyDown: boolean;
+  
   keys: {
     w: boolean;
     a: boolean;
@@ -199,6 +204,14 @@ export interface CursorState {
   meleeTimer: number;
   meleeCooldown: number;
   meleeAngle: number;
+  
+  slingshotActive: boolean;
+  slingshotStartPos: Vector2;
+  slingshotDragPos: Vector2;
+  slingshotCooldown: number;
+  fireSlingshot: boolean;
+  slingshotVelocity: Vector2;
+  fireMelee: boolean;
   
   bowCooldown: number; 
   healCooldown: number;

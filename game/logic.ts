@@ -233,6 +233,9 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
       keys: { w: false, a: false, s: false, d: false },
       isLeftDown: false,
       isRightDown: false,
+      isMeleeKeyDown: false,
+      isBowKeyDown: false,
+      isShieldKeyDown: false,
       hoverTarget: false,
       inWater: false,
       inventory,
@@ -258,6 +261,13 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
       meleeTimer: 0,
       meleeCooldown: 0,
       meleeAngle: 0,
+      slingshotActive: false,
+      slingshotStartPos: { x: 0, y: 0 },
+      slingshotDragPos: { x: 0, y: 0 },
+      slingshotCooldown: 0,
+      fireSlingshot: false,
+      slingshotVelocity: { x: 0, y: 0 },
+      fireMelee: false,
       bowCooldown: 0,
       healCooldown: 0,
       terraCooldown: 0,
@@ -730,7 +740,7 @@ export const updateGame = (
   }
 
   // PARRY LOGIC
-  if (c.isRightDown && c.parryCooldown <= 0 && !c.isInventoryOpen) {
+  if ((c.isRightDown || c.isShieldKeyDown) && c.parryCooldown <= 0 && !c.isInventoryOpen) {
       c.parryActive = true;
   } else {
       c.parryActive = false;
@@ -751,18 +761,86 @@ export const updateGame = (
   if (c.healCooldown > 0) c.healCooldown--;
 
   // MANUAL ATTACK / USE ITEM LOGIC
-  if (c.isLeftDown && !c.isInventoryOpen && !c.parryActive) {
-      // Cancel Auto Action
-      c.autoAction = 'NONE';
-      c.autoTargetId = null;
-      c.targetPos = null;
+  const activeSlot = c.inventory[c.hotbarSelectedIndex];
+  const activeItem = activeSlot.item;
 
-      const activeSlot = c.inventory[c.hotbarSelectedIndex];
-      const activeItem = activeSlot.item;
-
-      // 1. Check Cooldowns
-      if (c.meleeCooldown <= 0 && c.bowCooldown <= 0 && c.terraCooldown <= 0 && c.healCooldown <= 0) {
+  // 1. Check Cooldowns
+  if (c.meleeCooldown <= 0 && c.bowCooldown <= 0 && c.terraCooldown <= 0 && c.healCooldown <= 0 && !c.parryActive) {
+      
+      // --- SLINGSHOT / BOW (DRAG OR KEY) ---
+      if (c.fireSlingshot || c.isBowKeyDown) {
+          c.autoAction = 'NONE';
+          c.autoTargetId = null;
+          c.targetPos = null;
           
+          playSound('shoot');
+          
+          let vel = { x: 0, y: 0 };
+          if (c.fireSlingshot) {
+              vel = { ...c.slingshotVelocity };
+          } else if (c.isBowKeyDown) {
+              // Shoot in direction of movement or faceDirection
+              let angle = c.faceDirection === 1 ? 0 : Math.PI;
+              if (c.keys.w || c.keys.a || c.keys.s || c.keys.d) {
+                  let dx = 0; let dy = 0;
+                  if (c.keys.w) dy -= 1;
+                  if (c.keys.s) dy += 1;
+                  if (c.keys.a) dx -= 1;
+                  if (c.keys.d) dx += 1;
+                  angle = Math.atan2(dy, dx);
+              }
+              vel = { x: Math.cos(angle) * 15, y: Math.sin(angle) * 15 };
+          }
+          
+          w.projectiles.push({
+              id: Math.random().toString(),
+              pos: { ...c.pos },
+              vel: vel,
+              radius: 3,
+              isEnemy: false,
+              damage: 20,
+              color: '#fff',
+              type: 'ARROW'
+          });
+          c.bowCooldown = GAME_BALANCE.SLINGSHOT_COOLDOWN_FRAMES;
+          c.fireSlingshot = false; // Reset flag
+      }
+      
+      // --- MELEE (TAP OR KEY) ---
+      else if (c.fireMelee || c.isMeleeKeyDown) {
+          c.autoAction = 'NONE';
+          c.autoTargetId = null;
+          c.targetPos = null;
+          
+          playSound('swing');
+          c.meleeActive = true;
+          c.meleeTimer = GAME_BALANCE.MELEE_DURATION_FRAMES;
+          c.meleeCooldown = GAME_BALANCE.MELEE_COOLDOWN_FRAMES;
+          
+          if (c.isMeleeKeyDown) {
+              let angle = c.faceDirection === 1 ? 0 : Math.PI;
+              if (c.keys.w || c.keys.a || c.keys.s || c.keys.d) {
+                  let dx = 0; let dy = 0;
+                  if (c.keys.w) dy -= 1;
+                  if (c.keys.s) dy += 1;
+                  if (c.keys.a) dx -= 1;
+                  if (c.keys.d) dx += 1;
+                  angle = Math.atan2(dy, dx);
+              }
+              c.meleeAngle = angle;
+          } else {
+              c.meleeAngle = Math.atan2(c.mousePos.y - c.pos.y, c.mousePos.x - c.pos.x);
+          }
+          c.fireMelee = false; // Reset flag
+      }
+      
+      // --- CONTINUOUS ACTION (HOLD LEFT CLICK) ---
+      else if (c.isLeftDown && !c.isInventoryOpen) {
+          // Cancel Auto Action
+          c.autoAction = 'NONE';
+          c.autoTargetId = null;
+          c.targetPos = null;
+
           // --- CONSUMABLES ---
           if (activeItem === ItemType.POTION || activeItem === ItemType.STEAK || activeItem === ItemType.RAW_BEEF) {
               // Eat/Drink

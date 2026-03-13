@@ -76,6 +76,8 @@ export const CRAFTING_RECIPES = [
   { inputs: ['PLANKS', 'PLANKS', 'PLANKS', 'PLANKS', 'PLANKS', 'PLANKS', 'PLANKS'], output: 'LADDER', count: 1 },
   // Bow: 3 Sticks + 3 Vines
   { inputs: ['STICK', 'STICK', 'STICK', 'VINE', 'VINE', 'VINE'], output: 'BOW', count: 1 },
+  // Slingshot: 2 Sticks + 1 Vine
+  { inputs: ['STICK', 'STICK', 'VINE'], output: 'SLINGSHOT', count: 1 },
   // Backpack: 4 Leather (not implemented) or 4 Planks + 2 Vines
   { inputs: ['PLANKS', 'PLANKS', 'PLANKS', 'PLANKS', 'VINE', 'VINE'], output: 'BACKPACK', count: 1 },
   // Boat: 5 Planks (U-shape)

@@ -340,17 +340,35 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           dragStartPos.current = { x: clientX, y: clientY };
           lastClickTime.current = Date.now();
           
-          holdTimeoutRef.current = setTimeout(() => {
+          if (!settings.cameraLock) {
+              isPanning.current = true;
+              cameraStartPos.current = { ...world.current.cameraPos };
+          } else {
               if (world.current) {
-                  world.current.cursor.isLeftDown = true;
-                  world.current.cursor.mousePos = screenToWorld(clientX, clientY);
+                  world.current.cursor.slingshotActive = true;
+                  world.current.cursor.slingshotStartPos = screenToWorld(clientX, clientY);
+                  world.current.cursor.slingshotDragPos = screenToWorld(clientX, clientY);
               }
-          }, 200);
+              holdTimeoutRef.current = setTimeout(() => {
+                  if (world.current) {
+                      world.current.cursor.isLeftDown = true;
+                      world.current.cursor.mousePos = screenToWorld(clientX, clientY);
+                  }
+              }, 200);
+          }
       };
 
       const handleMove = (clientX: number, clientY: number) => {
           if (gameState !== GameState.PLAYING) return;
           if (settings.controlScheme === 'JOYSTICK') return;
+
+          if (isPanning.current && !settings.cameraLock && world.current) {
+              const dx = (clientX - dragStartPos.current.x) / world.current.zoom;
+              const dy = (clientY - dragStartPos.current.y) / world.current.zoom;
+              world.current.cameraPos.x = cameraStartPos.current.x - dx;
+              world.current.cameraPos.y = cameraStartPos.current.y - dy;
+              return;
+          }
 
           const dist = Math.hypot(clientX - dragStartPos.current.x, clientY - dragStartPos.current.y);
           
@@ -362,14 +380,27 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               }
           }
           
-          if (world.current && world.current.cursor.isLeftDown) {
-              world.current.cursor.mousePos = screenToWorld(clientX, clientY);
+          if (world.current) {
+              const worldPos = screenToWorld(clientX, clientY);
+              if (world.current.cursor.isLeftDown) {
+                  world.current.cursor.mousePos = worldPos;
+              }
+              if (world.current.cursor.slingshotActive) {
+                  world.current.cursor.slingshotDragPos = worldPos;
+              }
           }
       };
 
       const handleUp = (clientX: number, clientY: number) => {
           if (gameState !== GameState.PLAYING) return;
           if (settings.controlScheme === 'JOYSTICK') return;
+
+          if (isPanning.current) {
+              isPanning.current = false;
+              // If we were panning, don't trigger other click actions
+              const dist = Math.hypot(clientX - dragStartPos.current.x, clientY - dragStartPos.current.y);
+              if (dist > 5) return;
+          }
 
           if (holdTimeoutRef.current) {
               clearTimeout(holdTimeoutRef.current);
@@ -381,9 +412,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
           if (world.current) {
               world.current.cursor.isLeftDown = false;
+              const worldPos = screenToWorld(clientX, clientY);
               
               if (now - lastClickTime.current < 200 && dist < 10) {
-                  const worldPos = screenToWorld(clientX, clientY);
+                  // TAP (Melee or Interact)
+                  world.current.cursor.slingshotActive = false;
                   
                   let clickedEntity = null;
                   for (const ent of world.current.entities) {
@@ -399,6 +432,25 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                       world.current.cursor.targetPos = { ...worldPos };
                       world.current.cursor.autoAction = 'NONE';
                       world.current.cursor.autoTargetId = null;
+                      world.current.cursor.fireMelee = true; // Trigger melee on tap
+                      world.current.cursor.mousePos = { ...worldPos };
+                  }
+              } else if (world.current.cursor.slingshotActive) {
+                  // DRAG (Slingshot)
+                  world.current.cursor.slingshotActive = false;
+                  if (dist > 20) {
+                      const start = world.current.cursor.slingshotStartPos;
+                      const end = world.current.cursor.slingshotDragPos;
+                      const aimVector = { x: start.x - end.x, y: start.y - end.y }; // Pull back to shoot forward
+                      world.current.cursor.fireSlingshot = true;
+                      
+                      const mag = Math.hypot(aimVector.x, aimVector.y);
+                      if (mag > 0) {
+                          world.current.cursor.slingshotVelocity = {
+                              x: (aimVector.x / mag) * 15,
+                              y: (aimVector.y / mag) * 15
+                          };
+                      }
                   }
               }
           }
@@ -694,6 +746,48 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                 ctx.arc(targetScreenX, targetScreenY, 10, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
                 ctx.fill();
+                ctx.restore();
+            }
+
+            // Draw Slingshot Overlay
+            if (world.current.cursor.slingshotActive) {
+                const w = world.current;
+                const zoom = w.zoom;
+                const cx = window.innerWidth / 2;
+                const cy = window.innerHeight / 2;
+                
+                const startScreenX = (w.cursor.slingshotStartPos.x - w.cameraPos.x) * zoom + cx;
+                const startScreenY = (w.cursor.slingshotStartPos.y - w.cameraPos.y) * zoom + cy;
+                const dragScreenX = (w.cursor.slingshotDragPos.x - w.cameraPos.x) * zoom + cx;
+                const dragScreenY = (w.cursor.slingshotDragPos.y - w.cameraPos.y) * zoom + cy;
+                
+                const playerScreenX = (w.cursor.pos.x - w.cameraPos.x) * zoom + cx;
+                const playerScreenY = (w.cursor.pos.y - w.cameraPos.y) * zoom + cy;
+
+                ctx.save();
+                
+                // Draw pull-back line (red)
+                ctx.strokeStyle = 'rgba(255, 100, 100, 0.8)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(startScreenX, startScreenY);
+                ctx.lineTo(dragScreenX, dragScreenY);
+                ctx.stroke();
+                
+                // Draw trajectory hint (white dotted)
+                const aimVector = { 
+                    x: startScreenX - dragScreenX, 
+                    y: startScreenY - dragScreenY 
+                };
+                
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(playerScreenX, playerScreenY);
+                ctx.lineTo(playerScreenX + aimVector.x * 2, playerScreenY + aimVector.y * 2);
+                ctx.stroke();
+                
                 ctx.restore();
             }
           }
