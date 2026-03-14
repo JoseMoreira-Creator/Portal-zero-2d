@@ -516,7 +516,7 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
         >
             {/* Close Button */}
             <button 
-                onClick={close}
+                onClick={() => { playSound('click'); close(); }}
                 className="absolute -top-2 -right-2 w-8 h-8 bg-red-600 border-2 border-black text-white font-bold flex items-center justify-center hover:bg-red-500 shadow-lg z-[60]"
             >
                 X
@@ -531,6 +531,7 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
                     <button 
                         className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
                         onClick={() => {
+                            playSound('click');
                             // Equip logic
                             const slot = contextMenu.isCraft ? craftGrid[contextMenu.index] : cursor.inventory[contextMenu.index];
                             if (slot.item === ItemType.BACKPACK && !cursor.isBackpackEquipped) {
@@ -554,6 +555,7 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
                     <button 
                         className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
                         onClick={() => {
+                            playSound('click');
                             // Drop logic
                             const index = contextMenu.index;
                             const isCraft = contextMenu.isCraft;
@@ -574,7 +576,7 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
                     </button>
                     <button 
                         className="mc-btn px-4 py-1 text-sm font-bold text-left hover:bg-[#d6d6d6]"
-                        onClick={() => setContextMenu(null)}
+                        onClick={() => { playSound('click'); setContextMenu(null); }}
                     >
                         ❌ CLOSE
                     </button>
@@ -621,7 +623,7 @@ export const Inventory: React.FC<InventoryProps> = ({ cursor, updateInventory, c
             <div className="px-1 flex justify-between items-center">
                 <h2 className="text-[#444] text-2xl font-bold">Inventory</h2>
                 <button 
-                    onClick={onOpenOptions}
+                    onClick={() => { playSound('click'); onOpenOptions(); }}
                     className="mc-btn px-4 py-1 text-sm font-bold text-[#222]"
                 >
                     Settings

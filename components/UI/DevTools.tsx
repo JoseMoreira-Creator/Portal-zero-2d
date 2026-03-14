@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { playSound } from '../../utils/audio';
 
 interface DevToolsProps {
     onClose: () => void;
@@ -14,25 +15,25 @@ export const DevTools: React.FC<DevToolsProps> = ({ onClose }) => {
                 <div className="flex justify-between items-center p-2 bg-[#8b8b8b] border-b-4 border-black">
                     <div className="flex gap-2">
                         <button 
-                            onClick={() => setActiveTab('EDITOR')}
+                            onClick={() => { playSound('click'); setActiveTab('EDITOR'); }}
                             className={`px-4 py-2 font-bold ${activeTab === 'EDITOR' ? 'bg-[#c6c6c6] border-2 border-white border-b-black' : 'bg-[#a0a0a0] border-2 border-transparent'}`}
                         >
                             Image Editor (16x16)
                         </button>
                         <button 
-                            onClick={() => setActiveTab('FILES')}
+                            onClick={() => { playSound('click'); setActiveTab('FILES'); }}
                             className={`px-4 py-2 font-bold ${activeTab === 'FILES' ? 'bg-[#c6c6c6] border-2 border-white border-b-black' : 'bg-[#a0a0a0] border-2 border-transparent'}`}
                         >
                             File Manager
                         </button>
                         <button 
-                            onClick={() => setActiveTab('TERMINAL')}
+                            onClick={() => { playSound('click'); setActiveTab('TERMINAL'); }}
                             className={`px-4 py-2 font-bold ${activeTab === 'TERMINAL' ? 'bg-[#c6c6c6] border-2 border-white border-b-black' : 'bg-[#a0a0a0] border-2 border-transparent'}`}
                         >
                             Terminal
                         </button>
                     </div>
-                    <button onClick={onClose} className="mc-btn px-4 py-2 font-bold text-red-600">X</button>
+                    <button onClick={() => { playSound('click'); onClose(); }} className="mc-btn px-4 py-2 font-bold text-red-600">X</button>
                 </div>
 
                 {/* Content */}
@@ -113,19 +114,20 @@ const ImageEditor = () => {
                     className="w-12 h-12 cursor-pointer"
                 />
                 <button 
-                    onClick={() => setColor('transparent')}
+                    onClick={() => { playSound('click'); setColor('transparent'); }}
                     className="mc-btn px-4 py-2 font-bold bg-white"
                 >
                     Eraser
                 </button>
                 <button 
-                    onClick={() => setPixels(Array(16 * 16).fill('transparent'))}
+                    onClick={() => { playSound('click'); setPixels(Array(16 * 16).fill('transparent')); }}
                     className="mc-btn px-4 py-2 font-bold text-red-600"
                 >
                     Clear
                 </button>
                 <button 
                     onClick={() => {
+                        playSound('click');
                         if (!canvasRef.current) return;
                         const link = document.createElement('a');
                         link.download = 'texture.png';
@@ -153,8 +155,8 @@ const FileManager = () => {
     return (
         <div className="h-full flex flex-col p-4 gap-4">
             <div className="flex gap-2">
-                <button className="mc-btn px-4 py-2 font-bold" onClick={() => setFiles([...files, { name: 'New Folder', type: 'folder' }])}>+ Folder</button>
-                <button className="mc-btn px-4 py-2 font-bold" onClick={() => setFiles([...files, { name: 'new_file.txt', type: 'file' }])}>+ File</button>
+                <button className="mc-btn px-4 py-2 font-bold" onClick={() => { playSound('click'); setFiles([...files, { name: 'New Folder', type: 'folder' }]); }}>+ Folder</button>
+                <button className="mc-btn px-4 py-2 font-bold" onClick={() => { playSound('click'); setFiles([...files, { name: 'new_file.txt', type: 'file' }]); }}>+ File</button>
             </div>
             <div className="flex-1 bg-white border-2 border-black p-2 overflow-y-auto">
                 {files.map((f, i) => (

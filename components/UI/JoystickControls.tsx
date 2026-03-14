@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { WorldState } from '../../types';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { playSound } from '../../utils/audio';
 
 interface JoystickControlsProps {
     world: React.MutableRefObject<WorldState>;
@@ -132,6 +133,7 @@ export const JoystickControls: React.FC<JoystickControlsProps> = ({ world }) => 
                 <button 
                     className="w-20 h-20 bg-black/40 border-2 border-white/30 rounded-full flex items-center justify-center active:bg-white/40 active:scale-90 transition-all shadow-lg"
                     onPointerDown={() => {
+                        playSound('click');
                         if (world.current) {
                             world.current.cursor.isInventoryOpen = !world.current.cursor.isInventoryOpen;
                         }

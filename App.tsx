@@ -11,6 +11,7 @@ import { LoadingScreen } from './components/UI/LoadingScreen';
 import { CURRENT_VERSION } from './versions';
 import { createInitialWorld } from './game/logic';
 import { loadSprites } from './assets/sprites'; // IMPORT NEW LOADER
+import { playSound } from './utils/audio';
 
 import { DevTools } from './components/UI/DevTools';
 
@@ -69,6 +70,10 @@ const App: React.FC = () => {
     hunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
     maxHunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
     score: 0,
+    upgrades: {
+      slingshotPrecision: 0,
+      parryTension: 0,
+    }
   });
   const [activeSlot, setActiveSlot] = useState<ItemType>(ItemType.EMPTY);
   const [showChangelog, setShowChangelog] = useState(false);
@@ -109,6 +114,10 @@ const App: React.FC = () => {
               hunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
               maxHunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
               score: 0,
+              upgrades: {
+                  slingshotPrecision: 0,
+                  parryTension: 0,
+              }
           });
           
           setIsLoading(false);
@@ -130,6 +139,26 @@ const App: React.FC = () => {
                       worldState.cameraPos = { ...worldState.cursor.pos };
                   }
 
+                  // Migration: Ensure waterBodies have circles
+                  if (worldState.waterBodies) {
+                      worldState.waterBodies.forEach((lake: any) => {
+                          if (!lake.circles) {
+                              lake.circles = [{ x: lake.x, y: lake.y, radius: lake.radius || 50 }];
+                          }
+                      });
+                  }
+                  if (worldState.inactiveWorldData) {
+                      Object.values(worldState.inactiveWorldData).forEach((dimData: any) => {
+                          if (dimData && dimData.waterBodies) {
+                              dimData.waterBodies.forEach((lake: any) => {
+                                  if (!lake.circles) {
+                                      lake.circles = [{ x: lake.x, y: lake.y, radius: lake.radius || 50 }];
+                                  }
+                              });
+                          }
+                      });
+                  }
+
                   setActiveWorldId(id);
                   setActiveWorldState(worldState);
                   
@@ -140,6 +169,10 @@ const App: React.FC = () => {
                     hunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
                     maxHunger: GAME_BALANCE.PLAYER_BASE_HUNGER,
                     score: 0,
+                    upgrades: {
+                        slingshotPrecision: 0,
+                        parryTension: 0,
+                    }
                   });
                   
                   // If launching from multiplayer menu
@@ -317,6 +350,7 @@ const App: React.FC = () => {
                <div className="mc-panel p-6 w-[90%] max-w-96 bg-[#c6c6c6] flex flex-col gap-4">
                    <button 
                        onClick={() => {
+                           playSound('click');
                            setMultiplayerMode('HOST');
                            setGameState(GameState.WORLD_SELECT);
                        }}
@@ -336,7 +370,10 @@ const App: React.FC = () => {
                        className="p-2 border-2 border-[#555] bg-[#ddd] text-black font-mono text-lg"
                    />
                    <button 
-                       onClick={handleJoinGame}
+                       onClick={() => {
+                           playSound('click');
+                           handleJoinGame();
+                       }}
                        disabled={!joinId}
                        className="mc-btn w-full py-3 text-lg font-bold bg-[#a7f3d0]"
                    >
@@ -346,7 +383,10 @@ const App: React.FC = () => {
                    <div className="border-t-2 border-[#777] my-2"></div>
 
                    <button 
-                       onClick={() => setGameState(GameState.MENU)}
+                       onClick={() => {
+                           playSound('click');
+                           setGameState(GameState.MENU);
+                       }}
                        className="mc-btn w-full py-2 text-base font-bold text-[#555]"
                    >
                        BACK
@@ -380,6 +420,7 @@ const App: React.FC = () => {
           <div className="mc-panel p-4 w-[90%] max-w-72 flex flex-col gap-2">
              <button 
               onClick={() => {
+                  playSound('click');
                   setMultiplayerMode(null);
                   setGameState(GameState.WORLD_SELECT);
               }}
@@ -388,13 +429,19 @@ const App: React.FC = () => {
               Singleplayer
             </button>
             <button 
-              onClick={() => setGameState(GameState.MULTIPLAYER_MENU)}
+              onClick={() => {
+                  playSound('click');
+                  setGameState(GameState.MULTIPLAYER_MENU);
+              }}
               className="mc-btn w-full py-2 text-base font-bold"
             >
               Multiplayer
             </button>
             <button 
-              onClick={() => setShowDevTools(true)}
+              onClick={() => {
+                  playSound('click');
+                  setShowDevTools(true);
+              }}
               className="mc-btn w-full py-2 text-base font-bold text-blue-800 bg-blue-200"
             >
               Dev Tools (Mods/Textures)
@@ -402,7 +449,10 @@ const App: React.FC = () => {
             
             <div className="flex gap-2 w-full mt-2">
                 <button 
-                  onClick={() => setShowOptions(true)}
+                  onClick={() => {
+                      playSound('click');
+                      setShowOptions(true);
+                  }}
                   className="mc-btn flex-1 py-2 text-base font-bold"
                 >
                   Options / Extras
@@ -437,6 +487,7 @@ const App: React.FC = () => {
           <div className="flex flex-col gap-2 w-72">
              <button 
               onClick={() => {
+                  playSound('click');
                   // Respawn logic (re-load current world effectively)
                   if (activeWorldId) handleSelectWorld(activeWorldId);
               }}
@@ -445,7 +496,10 @@ const App: React.FC = () => {
               Restart
             </button>
              <button 
-              onClick={handleSaveAndQuit} // Quit to menu safely
+              onClick={() => {
+                  playSound('click');
+                  handleSaveAndQuit(); // Quit to menu safely
+              }}
               className="mc-btn w-full py-2 text-base font-bold"
             >
               Main Menu

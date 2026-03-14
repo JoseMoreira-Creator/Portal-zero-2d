@@ -1,6 +1,7 @@
 import React from 'react';
 import { InventorySlot, ItemType } from '../../types';
 import { ITEM_ICONS } from '../../assets/art';
+import { playSound } from '../../utils/audio';
 
 interface HotbarProps {
   inventory: InventorySlot[];
@@ -27,7 +28,7 @@ export const Hotbar: React.FC<HotbarProps> = ({ inventory, selectedIndex, onOpen
         </div>
       ))}
       <button 
-        onClick={(e) => { e.stopPropagation(); onOpenInventory(); }}
+        onClick={(e) => { e.stopPropagation(); playSound('click'); onOpenInventory(); }}
         className="w-14 h-14 bg-[#8b8b8b] border-4 border-[#373737] flex items-center justify-center text-2xl font-bold hover:bg-[#a0a0a0] shadow-inner"
       >
         🎒

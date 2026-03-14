@@ -121,6 +121,10 @@ export interface PlayerStats {
   hunger: number;
   maxHunger: number;
   score: number;
+  upgrades: {
+    slingshotPrecision: number;
+    parryTension: number;
+  };
 }
 
 export interface Projectile {
@@ -149,7 +153,7 @@ export interface Particle {
 export interface Entity {
   id: string;
   // Expanded types to include placeable blocks
-  type: MobType | 'TREE' | 'BIRCH_TREE' | 'VINE_TREE' | 'CRAFTING_TABLE' | 'ROCK' | 'COAL_ORE' | 'IRON_ORE' | ItemType.WOOD | ItemType.BIRCH_WOOD | ItemType.PLANKS | ItemType.FURNACE | ItemType.ANVIL | ItemType.TORCH | ItemType.DOOR | ItemType.LADDER;
+  type: MobType | 'TREE' | 'BIRCH_TREE' | 'VINE_TREE' | 'DIGITAL_TREE' | 'DIGITAL_ROCK' | 'CRAFTING_TABLE' | 'ROCK' | 'COAL_ORE' | 'IRON_ORE' | ItemType.WOOD | ItemType.BIRCH_WOOD | ItemType.PLANKS | ItemType.FURNACE | ItemType.ANVIL | ItemType.TORCH | ItemType.DOOR | ItemType.LADDER;
   pos: Vector2;
   vel: Vector2;
   hp: number;
@@ -199,6 +203,7 @@ export interface CursorState {
   parryActive: boolean; 
   parryTimer: number;
   parryCooldown: number;
+  parryTension: number;
   
   meleeActive: boolean; 
   meleeTimer: number;
@@ -211,6 +216,8 @@ export interface CursorState {
   slingshotCooldown: number;
   fireSlingshot: boolean;
   slingshotVelocity: Vector2;
+  slingshotTension: number;
+  slingshotPrecision: number;
   fireMelee: boolean;
   
   bowCooldown: number; 

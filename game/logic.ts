@@ -1,5 +1,5 @@
 
-import React from 'react';
+import { Dispatch, SetStateAction } from 'react';
 import { GAME_BALANCE, BLOCK_SIZE, MAX_STACK, WORLD_WIDTH, WORLD_HEIGHT, MINING_AREA_WIDTH, MINING_AREA_HEIGHT } from '../constants';
 import { COLORS } from '../assets/art';
 import { Entity, GameState, ItemType, MobType, PlayerStats, CursorState, Vector2, WorldState, StoredDimensionData, WaterBody } from '../types';
@@ -116,7 +116,7 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
 
     if (!overlap) {
         const rand = Math.random();
-        let type: 'TREE' | 'BIRCH_TREE' | 'VINE_TREE' = 'TREE';
+        let type: 'TREE' | 'BIRCH_TREE' | 'VINE_TREE' | 'DIGITAL_TREE' = 'TREE';
         let color = COLORS.WOOD;
 
         if (rand < 0.2) {
@@ -125,6 +125,9 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
         } else if (rand < 0.3) {
             type = 'VINE_TREE';
             color = '#8BC34A'; // Vine color
+        } else if (rand < 0.35) {
+            type = 'DIGITAL_TREE';
+            color = COLORS.DIGITAL_TREE;
         }
 
         entities.push({
@@ -257,6 +260,7 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
       parryActive: false,
       parryTimer: 0,
       parryCooldown: 0,
+      parryTension: 0,
       meleeActive: false,
       meleeTimer: 0,
       meleeCooldown: 0,
@@ -267,6 +271,8 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
       slingshotCooldown: 0,
       fireSlingshot: false,
       slingshotVelocity: { x: 0, y: 0 },
+      slingshotTension: 0,
+      slingshotPrecision: 0,
       fireMelee: false,
       bowCooldown: 0,
       healCooldown: 0,
@@ -494,7 +500,7 @@ export const updateGame = (
   world: WorldState, 
   canvasWidth: number, 
   canvasHeight: number,
-  setStats: React.Dispatch<React.SetStateAction<PlayerStats>>,
+  setStats: Dispatch<SetStateAction<PlayerStats>>,
   setGameState: (state: GameState) => void,
   stats: PlayerStats
 ) => {
@@ -740,10 +746,17 @@ export const updateGame = (
   }
 
   // PARRY LOGIC
-  if ((c.isRightDown || c.isShieldKeyDown) && c.parryCooldown <= 0 && !c.isInventoryOpen) {
+  if ((c.isRightDown || c.isShieldKeyDown) && c.parryCooldown <= 0 && !c.isInventoryOpen && !c.slingshotActive && !c.isBowKeyDown) {
       c.parryActive = true;
+      // Build parry tension based on cursor distance and left click
+      const dist = getDistance(c.pos, c.mousePos);
+      c.parryTension = Math.min(1, dist / 100);
+      if (c.isLeftDown) {
+          c.parryTension = Math.min(1, c.parryTension + 0.5); // Dual input boost
+      }
   } else {
       c.parryActive = false;
+      c.parryTension = 0;
   }
 
   if (c.parryCooldown > 0) c.parryCooldown--;
@@ -768,29 +781,57 @@ export const updateGame = (
   if (c.meleeCooldown <= 0 && c.bowCooldown <= 0 && c.terraCooldown <= 0 && c.healCooldown <= 0 && !c.parryActive) {
       
       // --- SLINGSHOT / BOW (DRAG OR KEY) ---
-      if (c.fireSlingshot || c.isBowKeyDown) {
+      // Build tension
+      if (c.slingshotActive) {
+          const dist = getDistance(c.slingshotStartPos, c.slingshotDragPos);
+          c.slingshotTension = Math.min(1, dist / 100);
+          if (c.isRightDown) {
+              c.slingshotPrecision = Math.min(1, c.slingshotPrecision + 0.05);
+          } else {
+              c.slingshotPrecision = Math.max(0, c.slingshotPrecision - 0.05);
+          }
+      } else if (c.isBowKeyDown) {
+          c.slingshotTension = Math.min(1, c.slingshotTension + 0.02);
+          if (c.isRightDown) {
+              c.slingshotPrecision = Math.min(1, c.slingshotPrecision + 0.05);
+          } else {
+              c.slingshotPrecision = Math.max(0, c.slingshotPrecision - 0.05);
+          }
+      } else if (c.slingshotTension > 0 && !c.fireSlingshot) {
+          // Key was released, fire!
+          c.fireSlingshot = true;
+          let angle = c.faceDirection === 1 ? 0 : Math.PI;
+          if (c.keys.w || c.keys.a || c.keys.s || c.keys.d) {
+              let dx = 0; let dy = 0;
+              if (c.keys.w) dy -= 1;
+              if (c.keys.s) dy += 1;
+              if (c.keys.a) dx -= 1;
+              if (c.keys.d) dx += 1;
+              angle = Math.atan2(dy, dx);
+          }
+          c.slingshotVelocity = { x: Math.cos(angle) * 15, y: Math.sin(angle) * 15 };
+      } else if (!c.fireSlingshot) {
+          c.slingshotTension = 0;
+          c.slingshotPrecision = 0;
+      }
+
+      if (c.fireSlingshot) {
           c.autoAction = 'NONE';
           c.autoTargetId = null;
           c.targetPos = null;
           
           playSound('shoot');
           
-          let vel = { x: 0, y: 0 };
-          if (c.fireSlingshot) {
-              vel = { ...c.slingshotVelocity };
-          } else if (c.isBowKeyDown) {
-              // Shoot in direction of movement or faceDirection
-              let angle = c.faceDirection === 1 ? 0 : Math.PI;
-              if (c.keys.w || c.keys.a || c.keys.s || c.keys.d) {
-                  let dx = 0; let dy = 0;
-                  if (c.keys.w) dy -= 1;
-                  if (c.keys.s) dy += 1;
-                  if (c.keys.a) dx -= 1;
-                  if (c.keys.d) dx += 1;
-                  angle = Math.atan2(dy, dx);
-              }
-              vel = { x: Math.cos(angle) * 15, y: Math.sin(angle) * 15 };
-          }
+          let vel = { ...c.slingshotVelocity };
+          
+          // Apply tension and precision modifiers
+          // Base speed is 0.5x, max tension is 2.0x
+          const speedMult = 0.5 + (c.slingshotTension * 1.5); 
+          // Base damage is 1x, max tension is 2x, precision upgrade adds up to 1x more
+          const damageMult = 1 + c.slingshotTension + (stats.upgrades.slingshotPrecision * c.slingshotPrecision * 0.5); 
+          
+          vel.x *= speedMult;
+          vel.y *= speedMult;
           
           w.projectiles.push({
               id: Math.random().toString(),
@@ -798,12 +839,14 @@ export const updateGame = (
               vel: vel,
               radius: 3,
               isEnemy: false,
-              damage: 20,
+              damage: 20 * damageMult,
               color: '#fff',
               type: 'ARROW'
           });
           c.bowCooldown = GAME_BALANCE.SLINGSHOT_COOLDOWN_FRAMES;
           c.fireSlingshot = false; // Reset flag
+          c.slingshotTension = 0;
+          c.slingshotPrecision = 0;
       }
       
       // --- MELEE (TAP OR KEY) ---
@@ -1007,14 +1050,21 @@ export const updateGame = (
                       if (diff > Math.PI) diff = (Math.PI*2) - diff;
 
                       if (diff < Math.PI / 2) {
-                          const isPerfectParry = c.parryTimer <= 15 && c.parryCooldown <= 0;
+                          // Calculate dynamic parry window based on tension and upgrades
+                          const baseWindow = 15;
+                          const tensionBonus = c.parryTension * 10;
+                          const upgradeBonus = stats.upgrades.parryTension * 10;
+                          const parryWindow = baseWindow + tensionBonus + upgradeBonus;
+                          
+                          const isPerfectParry = c.parryTimer <= parryWindow && c.parryCooldown <= 0;
                           
                           if (isPerfectParry) {
                               // Deflect projectile back
                               p.isEnemy = false;
-                              p.vel.x = -p.vel.x * 1.5;
-                              p.vel.y = -p.vel.y * 1.5;
-                              p.damage *= 2; // Double damage on deflect
+                              const deflectMult = 1.5 + c.parryTension;
+                              p.vel.x = -p.vel.x * deflectMult;
+                              p.vel.y = -p.vel.y * deflectMult;
+                              p.damage *= (2 + c.parryTension); // Increased damage on deflect
                               w.camShake = 5;
                               spawnParticles(w, p.pos, '#fff', 10);
                           } else {

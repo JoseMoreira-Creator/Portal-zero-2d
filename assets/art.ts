@@ -42,6 +42,9 @@ export const COLORS = {
   IRON_ORE: '#BCAAA4', 
   IRON_SPOT: '#8D6E63',
   
+  DIGITAL_TREE: '#00FF00',
+  DIGITAL_ROCK: '#00FFFF',
+  
   // --- MOBS ---
   COW: '#5D4037', 
   SHEEP: '#EEEEEE',

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Attributes } from '../../types';
 import { COLORS } from '../../assets/art';
+import { playSound } from '../../utils/audio';
 
 interface ShopProps {
   attributes: Attributes;
@@ -40,7 +41,7 @@ export const Shop: React.FC<ShopProps> = ({ attributes, gold, onUpgrade, onResum
            </div>
            
            <button
-            onClick={() => onUpgrade(attrKey)}
+            onClick={() => { playSound('click'); onUpgrade(attrKey); }}
             disabled={!canAfford}
             className="mc-btn px-3 py-1 text-sm font-bold"
           >
@@ -67,7 +68,7 @@ export const Shop: React.FC<ShopProps> = ({ attributes, gold, onUpgrade, onResum
         </div>
 
         <button
-          onClick={onResume}
+          onClick={() => { playSound('click'); onResume(); }}
           className="mc-btn px-8 py-2 text-lg font-bold"
         >
           Leave

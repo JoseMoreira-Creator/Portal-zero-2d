@@ -1,5 +1,6 @@
 import React from 'react';
 import { VERSION_HISTORY } from '../../versions';
+import { playSound } from '../../utils/audio';
 
 interface ChangelogProps {
   onClose: () => void;
@@ -17,7 +18,7 @@ export const Changelog: React.FC<ChangelogProps> = ({ onClose }) => {
         <div className="p-4 border-b-4 border-[#555] bg-[#a0a0a0] flex justify-between items-center shadow-md">
             <h2 className="text-3xl text-[#222] font-bold pixel-shadow tracking-wide">Version History</h2>
             <button 
-                onClick={onClose}
+                onClick={() => { playSound('click'); onClose(); }}
                 className="mc-btn px-4 py-1 text-xl font-bold text-red-900"
             >
                 X
@@ -53,7 +54,7 @@ export const Changelog: React.FC<ChangelogProps> = ({ onClose }) => {
         {/* Footer */}
         <div className="p-4 border-t-4 border-white bg-[#c6c6c6] flex justify-center">
              <button 
-                onClick={onClose}
+                onClick={() => { playSound('click'); onClose(); }}
                 className="mc-btn px-12 py-2 text-xl font-bold"
             >
                 Back to Menu

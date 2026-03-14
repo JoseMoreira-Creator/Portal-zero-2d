@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { COLORS, ITEM_ICONS, ITEM_DETAILS } from '../../assets/art';
 import { ItemType } from '../../types';
 import { CRAFTING_RECIPES } from '../../constants';
+import { playSound } from '../../utils/audio';
 
 interface GameWikiProps {
   onClose: () => void;
@@ -14,6 +15,7 @@ export const GameWiki: React.FC<GameWikiProps> = ({ onClose }) => {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   const toggleSection = (id: string) => {
+      playSound('click');
       setExpandedSections(prev => ({
           ...prev,
           [id]: !prev[id]
@@ -125,7 +127,7 @@ export const GameWiki: React.FC<GameWikiProps> = ({ onClose }) => {
         <div className="p-4 border-b-4 border-[#555] bg-[#a0a0a0] flex justify-between items-center shadow-md shrink-0">
             <h2 className="text-3xl text-[#222] font-bold pixel-shadow tracking-wide">Game Encyclopedia</h2>
             <button 
-                onClick={onClose}
+                onClick={() => { playSound('click'); onClose(); }}
                 className="mc-btn px-4 py-1 text-xl font-bold text-red-900"
             >
                 CLOSE

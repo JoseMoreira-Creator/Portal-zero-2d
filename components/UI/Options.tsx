@@ -2,6 +2,7 @@
 import React from 'react';
 import { GameSettings } from '../../types';
 import { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP } from '../../constants';
+import { playSound } from '../../utils/audio';
 
 interface OptionsProps {
   settings: GameSettings;
@@ -16,14 +17,17 @@ interface OptionsProps {
 export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose, onOpenWiki, onOpenChangelog, onSave, onSaveAndQuit }) => {
   
   const toggleAnimations = () => {
+      playSound('click');
       setSettings(prev => ({ ...prev, animations: !prev.animations }));
   };
 
   const toggleCoordinates = () => {
+      playSound('click');
       setSettings(prev => ({ ...prev, showCoordinates: !prev.showCoordinates }));
   };
 
   const toggleCameraLock = () => {
+      playSound('click');
       setSettings(prev => ({ ...prev, cameraLock: !prev.cameraLock }));
   };
 
@@ -88,7 +92,10 @@ export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose
                     <span className="text-xs text-[#444]">Input Method</span>
                 </div>
                 <button 
-                    onClick={() => setSettings(prev => ({ ...prev, controlScheme: prev.controlScheme === 'TAP_TO_MOVE' ? 'JOYSTICK' : 'TAP_TO_MOVE' }))}
+                    onClick={() => {
+                        playSound('click');
+                        setSettings(prev => ({ ...prev, controlScheme: prev.controlScheme === 'TAP_TO_MOVE' ? 'JOYSTICK' : 'TAP_TO_MOVE' }));
+                    }}
                     className="mc-btn w-32 py-2 font-bold text-xs"
                 >
                     {settings.controlScheme === 'TAP_TO_MOVE' ? 'TAP / MOUSE' : 'JOYSTICK'}
@@ -117,14 +124,14 @@ export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose
                  <span className="text-center text-[#555] font-bold mb-1">EXTRAS</span>
                  
                  <button 
-                    onClick={onOpenWiki}
+                    onClick={() => { playSound('click'); onOpenWiki(); }}
                     className="mc-btn w-full py-2 text-base font-bold text-[#222] bg-[#a7f3d0]"
                  >
                     Game Encyclopedia / Wiki
                  </button>
 
                  <button 
-                    onClick={onOpenChangelog}
+                    onClick={() => { playSound('click'); onOpenChangelog(); }}
                     className="mc-btn w-full py-2 text-base font-bold text-[#222] bg-[#ddd]"
                  >
                     Changelog / Versions
@@ -134,20 +141,20 @@ export const Options: React.FC<OptionsProps> = ({ settings, setSettings, onClose
 
         <div className="w-full flex gap-2">
             <button 
-                onClick={onSave}
+                onClick={() => { playSound('click'); onSave(); }}
                 className="mc-btn flex-1 py-3 text-lg font-bold text-green-900 bg-green-200 border-green-800"
             >
                 SAVE
             </button>
             <button 
-                onClick={onSaveAndQuit}
+                onClick={() => { playSound('click'); onSaveAndQuit(); }}
                 className="mc-btn flex-1 py-3 text-lg font-bold text-red-900 bg-red-200 border-red-800"
             >
                 SAVE & QUIT
             </button>
             
             <button 
-                onClick={onClose}
+                onClick={() => { playSound('click'); onClose(); }}
                 className="mc-btn flex-1 py-3 text-lg font-bold"
             >
                 RESUME

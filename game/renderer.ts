@@ -1,7 +1,7 @@
 
 import { GAME_BALANCE, BLOCK_SIZE, WORLD_WIDTH, WORLD_HEIGHT, MINING_AREA_WIDTH, MINING_AREA_HEIGHT } from '../constants';
 import { COLORS } from '../assets/art';
-import { Entity, Particle, Vector2, CursorState, ItemType, WorldState, MobType, Projectile, GameSettings, RemotePlayer } from '../types';
+import { Entity, Particle, Vector2, CursorState, ItemType, WorldState, MobType, Projectile, GameSettings, RemotePlayer, PlayerStats } from '../types';
 import { LOADED_SPRITES } from '../assets/sprites';
 
 interface RenderContext {
@@ -10,6 +10,7 @@ interface RenderContext {
   canvasHeight: number;
   world: WorldState;
   settings?: GameSettings; 
+  stats: PlayerStats;
 }
 
 let maskCanvas: HTMLCanvasElement | null = null;
@@ -29,7 +30,7 @@ const drawSprite = (ctx: CanvasRenderingContext2D, key: string, x: number, y: nu
     return false;
 };
 
-export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings }: RenderContext) => {
+export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings, stats }: RenderContext) => {
   const { particles, entities, items, cursor, cameraPos, camShake, frameCount, timeOfDay, projectiles, waterBodies, zoom, dimension, remotePlayers, myId } = world;
   const animationsEnabled = settings?.animations ?? true;
 
@@ -199,9 +200,9 @@ export const renderGame = ({ ctx, canvasWidth, canvasHeight, world, settings }: 
       if (obj.type === 'ENTITY') {
           drawEntityBase(ctx, obj.data as Entity, frameCount, animationsEnabled);
       } else if (obj.type === 'PLAYER') {
-          renderAdventurer(ctx, obj.data as CursorState, frameCount, world, settings, true);
+          renderAdventurer(ctx, obj.data as CursorState, frameCount, world, settings, stats, true);
       } else if (obj.type === 'REMOTE') {
-          renderRemotePlayer(ctx, obj.data as RemotePlayer, frameCount, world, settings);
+          renderRemotePlayer(ctx, obj.data as RemotePlayer, frameCount, world, settings, stats);
       }
   });
 
@@ -414,6 +415,19 @@ const drawEntityBase = (ctx: CanvasRenderingContext2D, ent: Entity, frameCount: 
             ctx.fillRect(-15, -35, 10, 10);
         }
     } 
+    // --- DIGITAL FOREST ---
+    else if (ent.type === 'DIGITAL_TREE') {
+        ctx.fillStyle = '#00FF00';
+        ctx.fillRect(-8, -40, 16, 40);
+        ctx.fillStyle = '#00AA00';
+        ctx.fillRect(-20, -60, 40, 20);
+    }
+    else if (ent.type === 'DIGITAL_ROCK') {
+        ctx.fillStyle = '#00FFFF';
+        ctx.fillRect(-16, -16, 32, 32);
+        ctx.fillStyle = '#008888';
+        ctx.fillRect(-8, -8, 16, 16);
+    }
     // --- ROCKS & ORES ---
     else if (ent.type === 'ROCK' || ent.type === 'COAL_ORE' || ent.type === 'IRON_ORE') {
         if (!drawSprite(ctx, ent.type, 0, 0, 32, 32)) {
@@ -666,7 +680,7 @@ const drawEntityBase = (ctx: CanvasRenderingContext2D, ent: Entity, frameCount: 
 };
 
 
-const renderAdventurer = (ctx: CanvasRenderingContext2D, cursor: CursorState, frameCount: number, world: WorldState, settings: GameSettings, isSelf: boolean = true) => {
+const renderAdventurer = (ctx: CanvasRenderingContext2D, cursor: CursorState, frameCount: number, world: WorldState, settings: GameSettings, stats: PlayerStats, isSelf: boolean = true) => {
     ctx.save();
     ctx.translate(cursor.pos.x, cursor.pos.y);
     ctx.scale(cursor.faceDirection, 1);
@@ -743,13 +757,19 @@ const renderAdventurer = (ctx: CanvasRenderingContext2D, cursor: CursorState, fr
     if (cursor.parryActive) {
         ctx.save();
         ctx.translate(0, -12);
-        ctx.strokeStyle = cursor.parryTimer <= 15 ? 'rgba(255, 255, 255, 0.9)' : 'rgba(100, 200, 255, 0.5)';
-        ctx.lineWidth = cursor.parryTimer <= 15 ? 4 : 2;
+        
+        const baseWindow = 15;
+        const tensionBonus = cursor.parryTension * 10;
+        const upgradeBonus = stats.upgrades.parryTension * 10;
+        const parryWindow = baseWindow + tensionBonus + upgradeBonus;
+        
+        ctx.strokeStyle = cursor.parryTimer <= parryWindow ? 'rgba(255, 255, 255, 0.9)' : 'rgba(100, 200, 255, 0.5)';
+        ctx.lineWidth = cursor.parryTimer <= parryWindow ? 4 : 2;
         ctx.beginPath();
         ctx.arc(0, 0, 20, angle - Math.PI/3, angle + Math.PI/3);
         ctx.stroke();
         
-        if (cursor.parryTimer <= 15) {
+        if (cursor.parryTimer <= parryWindow) {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
             ctx.beginPath();
             ctx.arc(0, 0, 20, angle - Math.PI/3, angle + Math.PI/3);
@@ -775,7 +795,7 @@ const renderAdventurer = (ctx: CanvasRenderingContext2D, cursor: CursorState, fr
     ctx.restore();
 };
 
-const renderRemotePlayer = (ctx: CanvasRenderingContext2D, rp: RemotePlayer, frameCount: number, world: WorldState, settings: GameSettings) => {
+const renderRemotePlayer = (ctx: CanvasRenderingContext2D, rp: RemotePlayer, frameCount: number, world: WorldState, settings: GameSettings, stats: PlayerStats) => {
     // Re-use logic for now, construct a dummy cursor state
     const dummyCursor: any = {
         pos: rp.pos,
@@ -789,7 +809,7 @@ const renderRemotePlayer = (ctx: CanvasRenderingContext2D, rp: RemotePlayer, fra
     };
     dummyCursor.inventory[0] = { item: rp.heldItem, count: 1 };
 
-    renderAdventurer(ctx, dummyCursor, frameCount, world, settings, false);
+    renderAdventurer(ctx, dummyCursor, frameCount, world, settings, stats, false);
 };
 
 const renderIcon = (ctx: CanvasRenderingContext2D, type: ItemType, size: number) => {

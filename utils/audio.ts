@@ -8,7 +8,7 @@ const getAudioCtx = () => {
     return audioCtx;
 };
 
-export const playSound = (type: 'hit' | 'mine' | 'swing' | 'walk' | 'death' | 'pickup' | 'craft' | 'eat' | 'place' | 'shoot') => {
+export const playSound = (type: 'hit' | 'mine' | 'swing' | 'walk' | 'death' | 'pickup' | 'craft' | 'eat' | 'place' | 'shoot' | 'click') => {
     const ctx = getAudioCtx();
     if (ctx.state === 'suspended') {
         ctx.resume();
@@ -23,6 +23,15 @@ export const playSound = (type: 'hit' | 'mine' | 'swing' | 'walk' | 'death' | 'p
     const now = ctx.currentTime;
 
     switch (type) {
+        case 'click':
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, now);
+            osc.frequency.exponentialRampToValueAtTime(1000, now + 0.05);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+            osc.start(now);
+            osc.stop(now + 0.05);
+            break;
         case 'hit':
             osc.type = 'square';
             osc.frequency.setValueAtTime(150, now);

@@ -685,7 +685,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               canvasWidth: window.innerWidth,
               canvasHeight: window.innerHeight,
               world: world.current,
-              settings
+              settings,
+              stats
             });
 
             // Draw Off-screen Arrow
