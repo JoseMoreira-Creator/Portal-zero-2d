@@ -159,6 +159,14 @@ const App: React.FC = () => {
                       });
                   }
 
+                  // Migration: Ensure multiplayer fields exist
+                  if (!worldState.remotePlayers) {
+                      worldState.remotePlayers = {};
+                      worldState.isMultiplayer = false;
+                      worldState.isHost = false;
+                      worldState.myId = '';
+                  }
+
                   setActiveWorldId(id);
                   setActiveWorldState(worldState);
                   
