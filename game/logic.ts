@@ -218,7 +218,7 @@ export const createInitialWorld = (screenWidth: number, screenHeight: number): W
       }
   }
 
-  const inventory = Array.from({ length: 2 }, () => ({ item: ItemType.EMPTY, count: 0 }));
+  const inventory = Array.from({ length: 36 }, () => ({ item: ItemType.EMPTY, count: 0 }));
 
   return {
     dimension: 'SURFACE',

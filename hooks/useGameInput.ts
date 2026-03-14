@@ -51,7 +51,9 @@ export const useGameInput = ({ gameState, world, toggleMap, isChatOpen, currentZ
     if (key === 'l') c.isShieldKeyDown = true;
 
     if (key === 'e') {
+        console.log("Inventory key pressed, current state:", c.isInventoryOpen);
         c.isInventoryOpen = !c.isInventoryOpen;
+        console.log("New state:", c.isInventoryOpen);
         if (c.isInventoryOpen) {
             const held = c.inventory[c.hotbarSelectedIndex].item;
             c.isCraftingTableOpen = held === ItemType.CRAFTING_TABLE;
